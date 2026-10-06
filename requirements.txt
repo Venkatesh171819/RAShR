@@ -1,0 +1,11 @@
+numpy
+scipy
+pandas
+matplotlib
+scikit-learn
+streamlit
+nbformat
+nbconvert
+ipykernel
+manim>=0.19
+# optional voices for the video: edge-tts, piper-tts

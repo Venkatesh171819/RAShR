@@ -1,0 +1,412 @@
+1
+00:00:00,150 --> 00:00:28,088
+Imagine a crowd of dots on a page, and your job is to draw the one straight line that best describes them. Easy, until part of the crowd is misleading. This video builds, from scratch and with pictures, a clever way to find the right line anyway. It is called Rasher, spelled R A S h R, which stands for the repeated angular shorth. Do not worry about the name. By the end, every word in it will be a picture you can see in your head.
+
+2
+00:00:28,433 --> 00:00:39,604
+Here are one hundred dots. Sixty-two of them follow a clear upward trend. The other thirty-eight sit in a tight little clump far away on the right, drifting downward.
+
+3
+00:00:39,950 --> 00:00:52,358
+Ask a computer for the best line, and the classic method, called least squares, draws this grey line. It tilts down toward the clump. The majority says up, but the line says down.
+
+4
+00:00:52,700 --> 00:01:09,460
+You might think the so-called robust methods, which were invented exactly to ignore bad points, would fix this. Two famous ones, called L M S and M M, draw the orange and purple lines. They also follow the clump, not the crowd.
+
+5
+00:01:09,799 --> 00:01:23,103
+Now watch the new method. It draws this gold line, which follows the sixty-two points that actually agree with each other. The true slope here is two, and the new method finds two point zero two.
+
+6
+00:01:23,449 --> 00:01:40,444
+We will go step by step. First, what a line even is, and why bad points break it. Second, the new idea, using directions between pairs of points. Third, why it works. And fourth, honest tests, including the cases where it does not help.
+
+7
+00:01:40,783 --> 00:01:55,090
+Let us start at the very beginning. Suppose each dot is a student. Across is the number of hours studied, up is the exam score. A straight line through the dots is a summary: more hours, higher score.
+
+8
+00:01:55,433 --> 00:02:10,081
+A line has two numbers. The first is the slope, which says how steep it is. Walk one step to the right. If the line climbs two steps, the slope is two. If it falls, the slope is negative. Flat means zero.
+
+9
+00:02:10,416 --> 00:02:21,160
+The second number is the intercept. It is simply the height where the line crosses the vertical axis, the score you would predict for a student who studied zero hours.
+
+10
+00:02:21,499 --> 00:02:36,979
+Together they give a recipe. Predicted score equals the intercept plus the slope times the hours. Finding the best line means finding the best two numbers. The whole video is about doing that when some of the dots are not honest.
+
+11
+00:02:37,316 --> 00:02:49,959
+But what makes a line the best? Real dots never sit exactly on a line. The vertical gap between a dot and the line is its miss, called a residual. A good line has small misses.
+
+12
+00:02:50,299 --> 00:03:05,843
+The classic recipe, least squares, builds a real square on every miss and adds up their areas. Big misses make really big squares. The best line is the one that makes the total area of the squares as small as possible.
+
+13
+00:03:06,183 --> 00:03:17,866
+Watch the line wiggle. When it is tilted badly, the squares are huge. When it settles along the dots, the squares shrink. The bottom of this wobble is the least squares line.
+
+14
+00:03:18,199 --> 00:03:34,106
+Now the problem. A far-away dot with a big miss makes an enormous square, because squaring a big number makes it gigantic. The line swings toward that dot to shrink its square, like a seesaw with a heavy child at the far end.
+
+15
+00:03:34,949 --> 00:03:49,106
+We call a single strange dot an outlier. Statisticians have good tricks for a lone outlier. The trouble in our picture is different, because here thirty-eight dots are strange, and they are strange together.
+
+16
+00:03:49,449 --> 00:04:05,334
+We call this coherent contamination. Think of an election. One person voting differently changes nothing. But a whole group that agrees with itself is a second opinion, and a method that merely counts misses can be fooled into following it.
+
+17
+00:04:05,683 --> 00:04:21,611
+Our clump is also far out to the right. Far along the horizontal axis means the dots have long leverage, like a long handle on a lever, so they pull the line much harder than dots near the middle. People call this high leverage.
+
+18
+00:04:22,449 --> 00:04:39,892
+Robust methods are judged by something called the breakdown point. Imagine replacing more and more honest dots by bad ones, placed as nastily as possible. The breakdown point is how many you can replace before the answer can be dragged anywhere at all.
+
+19
+00:04:40,233 --> 00:04:55,564
+The ordinary average breaks with a single bad dot. Fancier methods survive nearly half the data being bad. That sounds like the end of the story. A method with fifty percent breakdown can never be dragged to infinity.
+
+20
+00:04:55,899 --> 00:05:10,739
+But notice what that promise says. It says the line will stay somewhere reasonable. It does not say the line will follow the honest crowd. In our picture the robust lines stayed reasonable, and still chose the wrong crowd.
+
+21
+00:05:11,583 --> 00:05:25,122
+Before the new idea we need two small tools that will come back later. The first is the median. Line the numbers up in order, and take the one in the middle. Here are seven numbers, and the middle one is the median.
+
+22
+00:05:25,466 --> 00:05:41,074
+The average and the median usually agree. But now push one number to a million. The average explodes. The median does not even notice, because the middle person in a line barely changes when one person at the end runs away.
+
+23
+00:05:41,416 --> 00:05:59,285
+The second tool measures typical spread. Take how far each number is from the median, then take the median of those distances. We call it the median absolute deviation. Think of it as the typical distance from the middle that a lone far-away number cannot spoil.
+
+24
+00:05:59,633 --> 00:06:16,030
+To make it comparable with the usual standard deviation for bell-shaped data, we multiply it by one point four eight two six. We will call the result the robust scale. Median for the centre, robust scale for the size. Remember them.
+
+25
+00:06:16,866 --> 00:06:33,989
+Now let us see exactly how the famous robust methods go wrong. Take one of them, least median of squares. Its idea is neat: lay a ribbon along a candidate line, and make the ribbon as thin as possible while still covering half of all the dots.
+
+26
+00:06:34,333 --> 00:06:47,274
+Around the true line, the ribbon has to be fairly wide, because the honest dots scatter a bit. A ribbon through the clump looks like a bad idea, because the dots are far from the honest crowd.
+
+27
+00:06:47,616 --> 00:07:03,245
+But look at what the clump gives for free. It is nearly one single spot, so a thin ribbon through it already covers thirty-eight dots. To reach half the data it only needs twelve more, which it can pick up from the honest crowd by crossing it.
+
+28
+00:07:03,583 --> 00:07:20,386
+Now slide the clump's share toward one half. The extra dots needed shrink to almost nothing, and the ribbon through the clump gets thinner and thinner, until it beats the honest line. This is the real reason these methods get attracted by a tight bad group.
+
+29
+00:07:20,733 --> 00:07:32,672
+This is a mathematical fact for least median of squares. For the related methods, trimmed squares and M M, the same effect appears in experiments, but it is not proved.
+
+30
+00:07:33,516 --> 00:07:47,631
+So here is a different way to think. Forget candidate lines and misses. Pick just two dots and join them with a straight segment. A segment between two dots has a direction. We call such a segment a chord.
+
+31
+00:07:47,966 --> 00:07:56,662
+Do this for every pair of dots. Here is a small crowd, where blue dots follow an upward trend and red dots form the clump.
+
+32
+00:07:56,999 --> 00:08:16,042
+Look at the segments between two blue dots. They mostly lean upward, near the true trend. The segments between a blue and a red dot all lean the same other way, downward. And the segments between two red dots, which sit almost on top of each other, point every which way, but they are tiny.
+
+33
+00:08:16,383 --> 00:08:29,090
+The honest trend shows up as a favourite direction among the chords. So perhaps we should not search for a line at all. We should find the direction that most chords agree on, and read the line off from it.
+
+34
+00:08:29,933 --> 00:08:46,565
+There is one catch. A direction depends on how we draw the axes. Look at these dots. If I stretch the vertical axis, the upward trend gets steeper. Squash it, and it flattens. Same dots, different angles, only because I changed the units.
+
+35
+00:08:46,899 --> 00:09:00,800
+Imagine measuring height in metres on one axis and weight in grams on the other. The angle would change if you switched to kilometres. So before looking at directions we put both axes on equal footing.
+
+36
+00:09:01,149 --> 00:09:16,864
+First, slide the data so that the median of each axis sits at zero. Second, divide each axis by its robust scale, the tool from before. Because both tools ignore far-away dots, the clump cannot spoil them.
+
+37
+00:09:17,199 --> 00:09:31,314
+Now both axes are in the same measuring unit, the typical spread. We call the new coordinates u and v. Directions measured here will not change if someone redraws the original graph in different units.
+
+38
+00:09:32,149 --> 00:09:45,773
+How do we measure a direction? With an angle, like a compass or a protractor. Stand at the start of a segment, face right, and turn upward until you face its other end. The turn, in degrees, is its angle.
+
+39
+00:09:46,116 --> 00:10:05,201
+Why not just use the slope? Because slope breaks for near-vertical segments. A vertical segment has an infinite slope, and a nearly vertical one has a giant, unstable slope. An angle is calm: ninety degrees is vertical, and eighty-nine and ninety-one are close neighbours.
+
+40
+00:10:05,549 --> 00:10:22,352
+Computers have a tool for this called atan two. Give it how far the segment goes up and how far it goes right, and it tells you which way the arrow points. You do not need the formula, only the idea: a direction is an arrow, and an arrow has an angle.
+
+41
+00:10:23,199 --> 00:10:41,388
+One more subtlety. A line has no front and no back. An arrow pointing twenty degrees upward and an arrow pointing the exact opposite way, at two hundred twenty degrees, lie along the same line. So we only need angles from zero up to one hundred eighty.
+
+42
+00:10:41,733 --> 00:10:59,453
+That makes a funny rule. Angles near zero and angles near one hundred eighty are almost the same direction. Five degrees and one hundred seventy-five degrees are nearly identical lines, only ten degrees apart, even though the numbers look far apart.
+
+43
+00:10:59,799 --> 00:11:14,383
+Think of a clock that only has six hours, where after the last hour you wrap straight back to the first. Let us glue the two ends of the zero to one hundred eighty stretch together. Now it is a circle, with no ends at all.
+
+44
+00:11:14,733 --> 00:11:34,522
+On this circle, to compare two directions, take the shorter way round. That distance is never more than ninety degrees. In the drawing we place each direction at double its angle, only so that the half-turn fills a full circle neatly. Remember: one dot on this circle is one direction of a line.
+
+45
+00:11:35,366 --> 00:11:46,046
+We now have a circle of directions, with a dot for every chord. We want the place where the dots pile up. The tool for that is the shorth, short for shortest half.
+
+46
+00:11:46,383 --> 00:12:02,311
+Picture houses along a road, and we want the busiest neighbourhood. Slide a stretch of road along, always wide enough to include half of the houses. Of all those stretches, pick the shortest one. That is where the houses are most packed.
+
+47
+00:12:02,649 --> 00:12:15,526
+Let us do it with twelve angles. Half of twelve is six, so every window must hold six angles. Slide it along, measure each width, and keep the narrowest. Its midpoint is the answer.
+
+48
+00:12:16,849 --> 00:12:31,241
+Because directions live on a circle, a window may cross the seam between one hundred eighty and zero. To handle that, we copy the angles one more lap around, so a window can run on across the seam without a break.
+
+49
+00:12:31,583 --> 00:12:49,986
+Why not the median angle instead? The median is the middle person in the line, and it is dragged toward stragglers. The shorth ignores the stragglers and goes to the crowd. Here a few scattered angles pull the median away, while the shorth stays in the middle of the real pile.
+
+50
+00:12:50,833 --> 00:13:03,945
+Now let us use this on our points. Pick one dot and call it the anchor. Draw its chords to every other dot, and mark all those directions on the circle. This is what the anchor sees when it looks around.
+
+51
+00:13:04,283 --> 00:13:20,616
+Take an anchor from the honest crowd. Most of its chords go to other honest dots, and they pile up at one direction. The shortest half-window is narrow. The anchor's local direction is that midpoint, and the window's width tells how sure it is.
+
+52
+00:13:20,949 --> 00:13:36,557
+Now take an anchor from the clump. Half of its chords go to its own neighbours in the clump, in all sorts of directions, and half go to honest dots. No narrow pile exists, so its window is wide, and its local opinion is weak.
+
+53
+00:13:36,899 --> 00:13:46,022
+Do this for every dot. Each dot now gives one direction, its local opinion, together with a width that says how confident it is.
+
+54
+00:13:46,866 --> 00:14:01,237
+We now have a hundred local opinions on the circle. This is where the word repeated comes in: apply the same idea again. Find the shortest window that holds half of the local opinions, and take its midpoint.
+
+55
+00:14:01,583 --> 00:14:14,375
+Think of a committee. First every member consults everybody and forms a personal opinion. Then the committee itself finds the opinion that most members share. Two rounds of the same idea.
+
+56
+00:14:14,716 --> 00:14:30,004
+The honest members form a big, tight group of opinions. The clump members, as we saw, have scattered opinions. The shortest half-window naturally sits on the honest group. The result is one final direction, called theta hat.
+
+57
+00:14:30,349 --> 00:14:40,197
+Notice we never asked which line fits best. We only asked where the directions agree, once among chords, and once among local opinions.
+
+58
+00:14:41,033 --> 00:14:53,782
+We have a direction, but a direction is not yet a line on the original graph. First turn it into a slope. The slope of an arrow is its rise over its run, which is the tangent of the angle.
+
+59
+00:14:54,116 --> 00:15:07,804
+Then undo the standardizing. We squeezed the axes, so we stretch the slope back: multiply by the vertical scale, divide by the horizontal scale. Now we have the slope on the original graph.
+
+60
+00:15:08,149 --> 00:15:22,840
+For the height of the line, the intercept, let every dot make a suggestion. Given the slope, each dot says: the line should cross the vertical axis here. We take the median of those suggestions, the tool from before.
+
+61
+00:15:23,183 --> 00:15:34,098
+And there is our line, gold, passing along the honest crowd and ignoring the clump. In this example the slope is two point zero two, against the true two.
+
+62
+00:15:34,433 --> 00:15:45,369
+A fair warning. The intercept uses all dots, including the clump, so it can sit a little off even when the slope is right. The tests below measure the slope.
+
+63
+00:15:46,216 --> 00:16:05,045
+Let us run the whole machine once more, in one breath. Standardize the axes. Draw the direction of every pair. Fold directions onto a circle, where a line has no front or back. For each dot, find the shortest half-window of its directions. That gives its local opinion.
+
+64
+00:16:05,383 --> 00:16:21,866
+Then repeat: find the shortest half-window among the local opinions. Convert that direction into a slope, undo the standardizing, and take the median for the intercept. Every step is a picture: arrows, a circle, and a sliding window.
+
+65
+00:16:22,199 --> 00:16:34,351
+Computing it takes a number of steps proportional to the number of dots squared, times a small logarithm, with no random guessing, so the same data always give the same line.
+
+66
+00:16:35,199 --> 00:16:50,935
+Why should this work? Let us look at the best case first. Suppose all dots lie exactly on one line. Then every chord points the same way. Every dot's window has width zero, and the final direction is exactly that line.
+
+67
+00:16:51,283 --> 00:17:06,528
+Now the stronger version. Keep the honest dots exactly on the line, and put fewer than half as many bad dots anywhere at all, as long as none sits on the line. Even the most mischievous placement cannot change the answer.
+
+68
+00:17:06,866 --> 00:17:21,621
+Why? Because honest dots all agree exactly, so they form a perfect zero-width pile. A bad group smaller than half cannot make a pile of its own that is big enough to count. The perfect pile wins, always.
+
+69
+00:17:22,466 --> 00:17:34,853
+Second property. Change the units of the graph. Measure the horizontal axis in different units, or shift it. The method gives the same line, expressed in the new units, as it should.
+
+70
+00:17:35,199 --> 00:17:48,546
+This works because standardizing removes shifts and rescaling, so the chords, the circle, and the windows are exactly the same. Only the last step, converting back, notices the new units.
+
+71
+00:17:48,883 --> 00:18:04,128
+But a limit. If you tilt the picture, by adding a multiple of x to every y, the method can give a different answer than a plain tilt of its old answer. So it handles shifts and stretching, but not every possible distortion.
+
+72
+00:18:04,966 --> 00:18:24,393
+The main theorem is about separation. Imagine the honest dots' directions forming a tight pile on the circle, and the bad dots' directions somewhere else. What if the honest pile is so tight that any window which touches even one bad direction, while still holding enough dots, is wider?
+
+73
+00:18:24,733 --> 00:18:39,722
+Then the shortest window will never include a bad direction. And if the winning window never touches a bad direction, the bad directions cannot matter at all. You could remove them or move them around, and the winning window stays put.
+
+74
+00:18:40,066 --> 00:18:56,890
+The method uses windows twice, so we need this at both stages. First among each honest dot's chords, and second among the local opinions. If both stages are separated, the final direction is decided by the honest dots only.
+
+75
+00:18:57,233 --> 00:19:11,113
+Here is the experiment. We take the clump and slide it farther and farther along. The gold line, from this method, does not move at all once the clump is far enough. The other methods keep changing their minds.
+
+76
+00:19:11,449 --> 00:19:18,993
+That is what the theorem says, and the experiment shows it: contamination that is separated has zero influence.
+
+77
+00:19:19,333 --> 00:19:37,373
+Two honest caveats. The theorem assumes the median and scale from standardizing do not change, but those do use all the dots. And it states that separation holds. It does not say that separation always holds. The next tests ask when it does.
+
+78
+00:19:38,216 --> 00:19:52,523
+Now the other side of the coin. Why exactly do ribbon methods fail? Suppose a fraction of the dots, call it epsilon, sit at one single point, and the rest are honest, with some noise around a true line.
+
+79
+00:19:52,866 --> 00:20:10,501
+A ribbon through that point has the whole fraction epsilon already inside. To cover half of the dots, it needs only a little more from the honest crowd. When epsilon is close to one half, that little more is almost nothing, so the ribbon can be extremely thin.
+
+80
+00:20:10,849 --> 00:20:26,414
+A ribbon around the true line has to be fat enough to cover half of the dots just from the noisy honest crowd, and so it can never get as thin. So once epsilon is large enough, the ribbon criterion prefers the line through the bad point.
+
+81
+00:20:26,749 --> 00:20:37,237
+This is a proven statement, but for least median of squares only. For the other robust methods, the experiments show the same effect, but no proof is claimed.
+
+82
+00:20:38,083 --> 00:20:56,635
+A last point about what is really needed. You might think the method requires every honest chord to point near the true direction. That is too much to ask. Two honest dots that happen to sit almost above each other, with a little noise, give a chord that can point in nearly any direction.
+
+83
+00:20:56,983 --> 00:21:09,050
+Here are such nearly vertical pairs, with wild directions. But they are only a few of the many pairs. Most chords still agree, and the shortest half-window finds that agreement.
+
+84
+00:21:09,399 --> 00:21:21,743
+So what is needed is only that a half of the chords pile up, not all of them. This is exactly the kind of agreement that the shorth measures, and why the method can cope with noisy data.
+
+85
+00:21:22,583 --> 00:21:35,140
+Now the tests. The experiments use one hundred dots, spread along a line with some noise, and then replaced a fraction of them by bad dots. They tried three kinds of badness.
+
+86
+00:21:35,483 --> 00:21:52,691
+The first is the compact clump we have been using, far to the right. The second is a competing line, a second honest-looking trend with a different slope. The third is a funnel: the honest dots get more scattered as we move right, and a second line is mixed in.
+
+87
+00:21:53,033 --> 00:22:05,462
+For each situation they did sixty repetitions and counted the failures. A fit fails if its slope is off by more than one half. Failure counts, in percent, are what we will look at.
+
+88
+00:22:06,299 --> 00:22:15,806
+First, the ordinary world: clean data, mild contamination, or a single bad kind of dot. Here the new method is not the winner.
+
+89
+00:22:16,149 --> 00:22:37,730
+On perfectly clean data, the typical error of the slope is point zero three three for the new method, point zero two four for the M M method, and point zero two two for Ransack. On twenty percent vertical outliers, and on ten percent bad leverage, the M M method and Ransack are again slightly better.
+
+90
+00:22:38,066 --> 00:22:47,167
+So if your data are mostly honest, use the established methods. They are more efficient there, and they are what everyone already trusts.
+
+91
+00:22:48,016 --> 00:23:00,040
+The new method shines when a big coherent group of bad dots, between about thirty-five and forty-six percent, competes with the honest crowd. Take the compact clump first.
+
+92
+00:23:00,383 --> 00:23:15,564
+At thirty-six percent bad dots, the new method fails zero percent of the time. Least median of squares fails two percent, the trimmed squares and M M methods fail twenty-three percent, and Ransack fifty percent.
+
+93
+00:23:15,899 --> 00:23:29,096
+At forty percent, the new method still fails zero percent. Least median of squares now fails fifty-eight, trimmed squares and M M fail every single time, and Ransack seventy-seven.
+
+94
+00:23:29,433 --> 00:23:44,550
+At forty-four percent, the new method succeeds in forty percent of the experiments, while every competitor fails at least ninety-seven percent of the time. At forty-six percent, everything fails, including the new method.
+
+95
+00:23:44,899 --> 00:24:01,979
+With a competing line, the new method has no failures all the way to forty-six percent, though Ransack stays strong and fails only twelve. With the funnel, the new method fails zero percent at forty, three at forty-four, and eight at forty-six.
+
+96
+00:24:02,816 --> 00:24:24,120
+Now the limits, which matter as much as the wins. First, location. When the clump sits along the extension of the honest line, at about thirty degrees or equivalently minus one hundred fifty degrees, its chords point the same way as the honest chords. The two piles overlap and the separation is lost.
+
+97
+00:24:24,466 --> 00:24:38,794
+In that case the new method fails seventy-eight and seventy-five percent of the time at the larger distance. The other methods also do badly. In ten of the twelve tested directions, the new method had no failures.
+
+98
+00:24:39,133 --> 00:25:02,912
+Second, tightness. If the bad group is very tight, with spread zero point zero five, the new method never fails while least median of squares fails twenty-five percent and the others nearly always. But if the bad group is loose, with spread one or three, it is no longer a coherent clump, and all these methods do fine, with at most two percent failures.
+
+99
+00:25:03,249 --> 00:25:14,910
+So the advantage belongs to compact, coherent, separated bad groups, not to just any outliers. And as we saw, beyond about forty-six percent nothing works.
+
+100
+00:25:15,749 --> 00:25:33,298
+Let us pull the story together. Ordinary methods ask which line has small misses, and a tight clump of bad dots can fool them. This method asks which direction the pairs of dots agree on, and it measures agreement with the shortest window holding half, twice.
+
+101
+00:25:33,633 --> 00:25:50,969
+Use it when a large, tight, coherent group of dots disagrees with the honest majority, perhaps a third to a half of the data, and you want a repeatable, random-free answer. Prefer the classic methods for clean or lightly contaminated data.
+
+102
+00:25:51,316 --> 00:26:05,708
+The deeper lesson is that robust does not simply mean safe. It matters what a method rewards. Rewarding small misses can reward the wrong crowd. Rewarding agreement of directions rewards the crowd that agrees.
+
+103
+00:26:06,049 --> 00:26:15,108
+Thank you for watching. If a picture in this video helped, you now understand something many textbooks leave as formulas. Stay curious.
+

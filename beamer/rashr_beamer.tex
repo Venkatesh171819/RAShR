@@ -1,0 +1,903 @@
+% Compile:  latexmk -xelatex rashr_beamer.tex      (needs xelatex; fonts: Latin Modern, Inter)
+\documentclass[aspectratio=169,9pt]{beamer}
+\usetheme{rashr}
+\usepackage{algpseudocode}
+\usepackage{multicol}
+
+\input{data/fig1_info.tex}
+\input{data/anchor_info.tex}
+\input{data/shorth_info.tex}
+\input{data/outer_info.tex}
+
+% ---- circle helpers: a direction phi in [0,180) is drawn at angle 2*phi on the "projective circle"
+\newcommand{\cR}{2.0}
+\newcommand{\pdot}[2]{\fill[#2] ({\cR*cos(2*#1)},{\cR*sin(2*#1)}) circle (1.7pt);}
+\newcommand{\projcircle}[1][30]{%
+  \draw[mute,line width=0.9pt] (0,0) circle (\cR);
+  \foreach \a in {0,#1,...,150}{%
+    \draw[mute] ({(\cR-0.05)*cos(2*\a)},{(\cR-0.05)*sin(2*\a)}) -- ({(\cR+0.05)*cos(2*\a)},{(\cR+0.05)*sin(2*\a)});
+    \node[font=\sffamily\tiny,mute] at ({(\cR+0.3)*cos(2*\a)},{(\cR+0.3)*sin(2*\a)}) {$\a^\circ$};}}
+\newcommand{\arcdeg}[4]{% lo hi colour offset
+  \draw[#3,line width=2.4pt,line cap=round] plot[domain=2*#1:2*#2,samples=40] ({(\cR+#4)*cos(\x)},{(\cR+#4)*sin(\x)});}
+\tikzset{lab/.style={font=\sffamily\scriptsize}}
+\pgfplotsset{every axis/.append style={font=\sffamily\scriptsize,tick label style={font=\sffamily\scriptsize},
+  label style={font=\sffamily\scriptsize},axis line style={mute},tick style={mute},grid=major,grid style={rule!60},
+  title style={font=\sffamily\scriptsize\bfseries}}}
+\pgfplotsset{mymark/.style={only marks,mark=*,mark size=1.2pt,mark options={solid}}}
+
+\title{Repeated Angular Shorth Regression}
+\subtitle{Robust line fitting from the geometry of pairwise chords}
+\author{Based on V.~Dharavath \& V.~Srivastava, \emph{Robust Linear Regression via the Repeated Angular Shorth}}
+\institute{Department of Mathematics, National Institute of Technology Warangal}
+\date{Seminar presentation \,·\, theory, geometry and simulation evidence}
+
+\setlength{\abovedisplayskip}{3pt}\setlength{\belowdisplayskip}{3pt}\setlength{\abovedisplayshortskip}{1pt}\setlength{\belowdisplayshortskip}{2pt}
+\begin{document}
+
+\begin{frame}[plain]\titlepage\end{frame}
+
+% ============================================================ OUTLINE
+\begin{frame}{Roadmap}
+\begin{columns}[T]
+\column{0.52\textwidth}
+\renewcommand{\arraystretch}{1.4}\small
+\begin{tabular}{@{}r@{\hspace{0.9em}}p{5.4cm}@{}}
+{\sffamily\bfseries\color{rteal}1} & Why residual-based robust fits can fail\\
+{\sffamily\bfseries\color{rteal}2} & Chords, directions and the projective circle\\
+{\sffamily\bfseries\color{rteal}3} & The angular shorth and the \emph{repeated} shorth\\
+{\sffamily\bfseries\color{rteal}4} & Theory: exact fit, equivariance, separation, zero influence\\
+{\sffamily\bfseries\color{rteal}5} & Why LMS is attracted by a compact cluster\\
+{\sffamily\bfseries\color{rteal}6} & Simulation evidence --- and where it stops\\
+{\sffamily\bfseries\color{rteal}7} & Limitations and when to use RAShR\\
+\end{tabular}
+\column{0.46\textwidth}
+\begin{rkey}{The idea in one line}
+Do not ask \emph{which line has small residuals}.\\[2pt]
+Ask \emph{which direction do pairwise chords agree on} --- and measure agreement with the shortest arc that holds half of them, \emph{twice}.
+\end{rkey}
+\vspace{2pt}
+{\sffamily\scriptsize\color{mute} Conventions: angles of directions live in $[0,\pi)$; $n$ observations; $\lceil\cdot\rceil$ is the ceiling.\ Numbers labelled \emph{paper} are quoted from the paper; curves labelled \emph{re-implementation} are our own simulations.}
+\end{columns}
+\end{frame}
+
+% ============================================================ 1 MOTIVATION
+\section{Motivation}
+\begin{frame}{A high-breakdown fit can still follow the wrong line}
+\begin{columns}[T]
+\column{0.63\textwidth}
+\begin{tikzpicture}
+\begin{axis}[width=\textwidth,height=5.2cm,xmin=-6,xmax=18,ymin=-14,ymax=15,xlabel={$x$},ylabel={$y$},
+  legend style={at={(0.5,-0.2)},anchor=north,font=\sffamily\scriptsize,draw=none,legend columns=4,/tikz/every even column/.append style={column sep=6pt}},legend cell align=left]
+\addplot[mymark,cmaj] table[col sep=comma] {data/fig1_majority.csv};\addlegendentry{majority (62)}
+\addplot[mymark,cbad,mark=x] table[col sep=comma] {data/fig1_cluster.csv};\addlegendentry{leverage cluster (38)}
+\addplot[domain=-6:17,mOLS,dashed,thick] {\aOLS+\bOLS*x};\addlegendentry{OLS $-0.53$}
+\addplot[domain=-6:17,mLMS,dashdotted,thick] {\aLMS+\bLMS*x};\addlegendentry{LMS $-0.21$}
+\addplot[domain=-6:17,mMM,dotted,very thick] {\aMM+\bMM*x};\addlegendentry{MM $-0.29$}
+\addplot[domain=-6:17,mRAShR,very thick] {\aRAShR+\bRAShR*x};\addlegendentry{RAShR $+2.02$}
+\addplot[domain=-6:17,black,thin] {1+2*x};\addlegendentry{truth $+2.00$}
+\end{axis}
+\end{tikzpicture}
+\column{0.34\textwidth}
+\small
+$n=100$: $62$ points on $y=1+2x+e$, $38$ in a compact cluster at $(15,-10)$.\medskip
+
+\emphc{Slopes} (paper, Fig.~1):\\[2pt]
+\renewcommand{\arraystretch}{1.15}\sffamily\footnotesize
+\begin{tabular}{@{}l@{\hspace{1.2em}}r@{}}
+OLS & $-0.53$\\ LMS & $-0.20$\\ MM & $-0.26$\\ \textbf{RAShR} & $\mathbf{+2.02}$\\ \textcolor{mute}{true slope} & \textcolor{mute}{$+2.00$}
+\end{tabular}\rmfamily\normalsize\medskip
+
+\begin{rrem}{Breakdown is a guarantee of boundedness}
+It does \emph{not} say that the estimate follows the dominant structure.
+\end{rrem}
+\vspace{-2pt}{\sffamily\tiny\color{mute} Our data: seed 3 of the same design; slopes computed by our code (OLS $-0.53$, LMS $-0.21$, MM $-0.29$, RAShR $+2.02$).}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Vocabulary, built up in order}
+\begin{columns}[T]
+\column{0.49\textwidth}
+\begin{rdef}{Definition}{Outlier vs.\ contamination}{}
+An \emph{outlier} is one unusual observation. \emph{Contamination} is any set of observations not following the main pattern --- possibly a large set.
+\end{rdef}
+\begin{rdef}{Definition}{Coherent contamination}{}
+Contaminated points related to each other: a compact cluster, or a second line.
+\end{rdef}
+\begin{rdef}{Definition}{High leverage}{}
+$x_i$ far from the bulk of the $x$-values; such points pull hard on the slope.
+\end{rdef}
+\column{0.49\textwidth}
+\begin{rdef}{Definition}{Breakdown point}{}
+The fraction of observations that can be replaced before the estimate can be driven arbitrarily far away.
+\end{rdef}
+\begin{rdef}{Definition}{Residual-based method}{}
+Judges candidate lines by residuals $y_i-\hat y_i$: LS, LMS, LTS, MM, \dots
+\end{rdef}
+\begin{rdef}{Definition}{Chord}{}
+The segment joining two observations. It has a \emph{direction}; it is not a regression line.
+\end{rdef}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Why a residual criterion can be attracted by a compact cluster}
+\begin{columns}[T]
+\column{0.64\textwidth}
+\begin{tikzpicture}
+\pgfplotsset{strip/.style={width=0.5\textwidth,height=5.2cm,xmin=-6,xmax=18,ymin=-14,ymax=15,xlabel={$x$},ylabel={$y$},ylabel style={yshift=-4pt}}}
+\begin{axis}[strip,title={strip around the true line}, name=a]
+\addplot[name path=u1,draw=none,domain=-6:17] {1+2*x+1.4};\addplot[name path=l1,draw=none,domain=-6:17] {1+2*x-1.4};
+\addplot[rteal!30] fill between[of=u1 and l1];
+\addplot[mymark,cmaj] table[col sep=comma] {data/fig1_majority.csv};
+\addplot[mymark,cbad,mark=x] table[col sep=comma] {data/fig1_cluster.csv};
+\addplot[domain=-6:17,rteal,thick] {1+2*x};
+\end{axis}
+\begin{axis}[strip,title={strip through the cluster},at={(a.east)},anchor=west,xshift=0.5cm,yticklabels={}, ylabel={}]
+\addplot[name path=u2,draw=none,domain=-6:17] {\aLMS+\bLMS*x+0.9};\addplot[name path=l2,draw=none,domain=-6:17] {\aLMS+\bLMS*x-0.9};
+\addplot[rorange!35] fill between[of=u2 and l2];
+\addplot[mymark,cmaj] table[col sep=comma] {data/fig1_majority.csv};
+\addplot[mymark,cbad,mark=x] table[col sep=comma] {data/fig1_cluster.csv};
+\addplot[domain=-6:17,rorange,thick] {\aLMS+\bLMS*x};
+\end{axis}
+\end{tikzpicture}
+\column{0.34\textwidth}
+\small
+\begin{rdef}{Definition}{Strip width}{}
+$W(\ell)=\inf\{w:\ \Pr(|Y-\ell(X)|\le w)\ge\tfrac12\}$.\ LMS minimises $W$.
+\end{rdef}
+\begin{itemize}\setlength\itemsep{2pt}
+\item Around the truth, $W$ must absorb the noise of the majority.
+\item A line through the cluster only needs a little extra majority mass.
+\item As contamination $\uparrow\tfrac12$, that width $\to0$.
+\end{itemize}
+\paperref{Proposition~3 --- population LMS only}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Related work as one story: pairwise slopes $\to$ pairwise directions}
+\renewcommand{\arraystretch}{1.28}\footnotesize
+\begin{tabular}{@{}p{2.5cm}p{3.7cm}p{4.1cm}p{3.2cm}@{}}
+\toprule
+\textbf{Method} & \textbf{geometric object} & \textbf{known behaviour} & \textbf{link to RAShR}\\\midrule
+Theil--Sen & median of all $\binom n2$ pairwise slopes & breakdown $\approx29\%$ & pairwise information\\
+Siegel's repeated median & median over $i$ of $\med_j$ of slopes & breakdown $50\%$ & ``repeat'' structure\\
+LMS / LTS & narrowest strip / trimmed residuals & a coherent cluster can win (Prop.~3 for LMS) & the contrast case\\
+MM & robust start $+$ M-step (bisquare) & efficient; inherits its start & efficiency benchmark\\
+RANSAC & 2-point models, count inliers & strong on some geometries & random vs.\ deterministic\\
+Hough transform & votes in parameter space & mode seeking & concentration idea\\
+Shorth & shortest interval with half the data & robust mode / location & \emphc{building block}\\
+\bottomrule
+\end{tabular}
+\medskip
+
+{\small\textbf{Bridge.} Keep the pairwise-geometric idea of the repeated median; replace slope-and-median aggregation by \emph{angular concentration} through the shorth.}
+\end{frame}
+
+\begin{frame}{The central shift, and what the paper contributes}
+\begin{columns}[T]
+\column{0.47\textwidth}
+\begin{rwarn}{Residual-based view}
+Which line produces small residuals?\\[2pt]
+\small a line is \emph{judged} by how well it fits a subset of points
+\end{rwarn}
+\begin{rthm}{Direction-based view}{}{}
+Which direction receives the strongest agreement from pairwise chords?\\[2pt]
+\small a line is \emph{read off} from where the chords concentrate
+\end{rthm}
+\column{0.5\textwidth}
+\textbf{Contributions}
+\begin{enumerate}\setlength\itemsep{3pt}\small
+\item RAShR: a deterministic estimator of $O(n^2\log n)$ time and $O(n)$ memory.
+\item Exact fit, equivariance, and a \emph{separation} theorem: zero influence of separated contamination (Thm~1).
+\item A population result explaining why LMS is attracted by a point-mass cluster (Prop.~3).
+\item A simulation study identifying a \emph{finite} regime, $\approx35$--$46\%$ coherent contamination, where RAShR keeps the majority line.
+\item Honest limitations: MM is better on clean data; failure when the cluster sits along the line's extension.
+\end{enumerate}
+\end{columns}
+\end{frame}
+
+% ============================================================ 2 GEOMETRY
+\section{From points to directions}
+\begin{frame}{Setting and notation}
+\begin{columns}[T]
+\column{0.5\textwidth}
+\textbf{Model.}\ Observations $(x_i,y_i)_{i=1}^n$ with majority $y_i=\alpha^\star+\beta^\star x_i+e_i$ on an index set $G$, $|G|>n/2$, and arbitrary contamination on $B=G^{c}$.\medskip
+
+\textbf{Goal.}\ Estimate $(\alpha^\star,\beta^\star)$ although $B$ may be large and coherent.\medskip
+
+\footnotesize\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{@{}l p{4.9cm}@{}}
+\toprule\textbf{Symbol}&\textbf{Meaning}\\\midrule
+$u_i,v_i$ & robustly standardized $x_i,y_i$ \\
+$s_x,s_y$ & $1.4826\cdot\MAD$ of $x$, of $y$ \\
+$\varphi_{ij}$ & direction of the chord $i\!\to\! j$, in $[0,\pi)$\\
+$\dpi$ & distance on the projective circle\\
+$\ASh_h(A)$, $w_h(A)$ & angular shorth and its width\\
+$\theta_i,\ w_i$ & local direction / width at anchor $i$\\
+$\hat\theta$ & outer (repeated) shorth\\
+\bottomrule\end{tabular}
+\column{0.46\textwidth}
+\begin{tikzpicture}[scale=1.0]
+\def\sh{3.7}
+\draw[->,mute] (-0.2,0) -- (\sh+0.3,0) node[right,lab] {$x$};\draw[->,mute] (0,-0.2) -- (0,3.4) node[above,lab] {$y$};
+\foreach \i in {0.6,0.9,1.2,1.5,1.9,2.2,2.6,3.0,3.3}{\fill[cmaj] (\i,{0.15+0.85*\i+0.18*sin(500*\i)}) circle (1.7pt);}
+\draw[rteal,thick] (0.2,0.3) -- (3.6,3.3) node[right,lab,rteal] {$\ell^\star$};
+\foreach \p in {(3.4,0.5),(3.5,0.35),(3.25,0.4),(3.45,0.65),(3.3,0.25)}{\fill[cbad] \p circle (1.7pt);}
+\node[lab,cbad] at (3.0,1.0) {cluster $B$};
+\node[lab,cmaj] at (1.0,2.5) {majority $G$};
+\end{tikzpicture}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Step 1 --- angles depend on units, so standardize robustly}
+\begin{columns}[T]
+\column{0.58\textwidth}
+\begin{tikzpicture}
+\begin{axis}[width=0.5\textwidth,height=5cm,title={raw $(x,y)$},xlabel={$x$},ylabel={$y$},xmin=-6,xmax=17,ymin=-13,ymax=15,name=a]
+\addplot[mymark,cmaj] table[col sep=comma] {data/fig1_majority.csv};
+\addplot[mymark,cbad,mark=x] table[col sep=comma] {data/fig1_cluster.csv};
+\end{axis}
+\begin{axis}[width=0.5\textwidth,height=5cm,title={standardized $(u,v)$},xlabel={$u$},ylabel={$v$},at={(a.east)},anchor=west,xshift=1.0cm,xmin=-1.1,xmax=1.8,ymin=-1.0,ymax=2.8]
+\addplot[mymark,cmaj] table[col sep=comma] {data/std_majority.csv};
+\addplot[mymark,cbad,mark=x] table[col sep=comma] {data/std_cluster.csv};
+\end{axis}
+\end{tikzpicture}
+\column{0.4\textwidth}
+\begin{rdef}{Definition}{Robust standardization}{paper Eq.~(2)}
+\[\begin{gathered}u_i=\frac{x_i-\med(x)}{s_x}\\[2pt] v_i=\frac{y_i-\med(y)}{s_y}\end{gathered}\]
+with $s_x,s_y$ equal to $1.4826$ times the MAD of the coordinate. If a MAD is $0$, the standard deviation of that coordinate is used.
+\end{rdef}
+\small $1.4826$ makes the MAD consistent for the normal standard deviation. \paperref{\S3.1}\medskip
+
+\small On our example: $s_x=\sxval$, $s_y=\syval$.
+\end{columns}
+\end{frame}
+
+\begin{frame}{Step 2 --- a chord is a vector; its direction is $\operatorname{atan2}$}
+\begin{columns}[T]
+\column{0.58\textwidth}
+\begin{tikzpicture}
+\begin{axis}[width=\textwidth,height=5.2cm,xlabel={$u$},ylabel={$v$},xmin=-1.1,xmax=1.8,ymin=-1.0,ymax=2.8,unbounded coords=jump,
+  legend style={at={(0.5,-0.2)},anchor=north,font=\sffamily\scriptsize,draw=none,legend columns=2}]
+\addplot[cmaj!55,thin] table[col sep=comma] {data/anchor_segments_maj.csv};\addlegendentry{chords to majority}
+\addplot[cbad!60,thin] table[col sep=comma] {data/anchor_segments_bad.csv};\addlegendentry{chords to cluster}
+\addplot[mymark,cmaj] table[col sep=comma] {data/std_majority.csv};
+\addplot[mymark,cbad,mark=x] table[col sep=comma] {data/std_cluster.csv};
+\addplot[mymark,mark=*,mark size=3pt,rorange,draw=black] coordinates {(\anchoru,\anchorv)};
+\end{axis}
+\end{tikzpicture}
+\column{0.4\textwidth}
+\begin{rdef}{Definition}{Chord direction}{Eq.~(3)}
+\[\varphi_{ij}=\operatorname{atan2}(v_j-v_i,\;u_j-u_i)\bmod\pi\]
+\end{rdef}
+\begin{itemize}\setlength\itemsep{3pt}\small
+\item Uses the vector $(\Delta u,\Delta v)$, not the ratio $\Delta v/\Delta u$: a nearly vertical chord causes no trouble.
+\item From an anchor $i$ in the majority, chords to other \textcolor{cmaj}{majority} points fan out around the true direction; chords to the \textcolor{cbad}{cluster} all share one very different direction.
+\end{itemize}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Step 3 --- directions live on the projective circle}
+\begin{columns}[T]
+\column{0.5\textwidth}
+\centering
+\begin{tikzpicture}[scale=1.12]
+\projcircle
+\node[lab,mute,align=center] at (0,0) {position on circle\\$=2\varphi$};
+\fill[rblue] ({\cR*cos(10)},{\cR*sin(10)}) circle (2.6pt) node[right=3pt,lab,rblue] {$5^\circ$};
+\fill[rred] ({\cR*cos(350)},{\cR*sin(350)}) circle (2.6pt) node[right=3pt,lab,rred] {$175^\circ$};
+\draw[rorange,line width=2pt,line cap=round] plot[domain=-10:10,samples=20] ({(\cR+0.0)*cos(\x)},{(\cR+0.0)*sin(\x)});
+\node[lab,rorange] at (1.0,0.28) {$10^\circ$ apart};
+\end{tikzpicture}
+\column{0.47\textwidth}
+\small
+A regression line has no orientation: $\varphi$ and $\varphi+\pi$ describe the same line ($20^\circ\equiv200^\circ$). Directions are therefore represented on the \emph{projective circle}, identified with $[0,\pi)$ with the endpoints glued.
+\begin{rdef}{Definition}{Projective distance}{Eq.~(4)}
+\[\dpi(a,b)=\min\{|a-b|,\ \pi-|a-b|\}\]
+\end{rdef}
+Angles near $0$ and near $\pi$ are \emph{close}: $5^\circ$ and $175^\circ$ are only $10^\circ$ apart, although $|5^\circ-175^\circ|=170^\circ$ on a plain number line.\smallskip
+
+{\sffamily\scriptsize\color{mute}Drawing convention (all deliverables): direction $\varphi$ is plotted at polar angle $2\varphi$, so the seam $0\equiv\pi$ closes up.}
+\end{columns}
+\end{frame}
+
+\begin{frame}{The angular shorth}
+\begin{rdef}{Definition}{Angular shorth}{\S3.2}
+Let $A=\{a_1,\dots,a_m\}\subset[0,\pi)$ and $1\le h\le m$. $\ASh_h(A)$ is the \emph{midpoint of the shortest arc} of the projective circle that contains at least $h$ elements of $A$; its width is $w_h(A)$. Default: $h=\lceil m/2\rceil$, written $\ASh(A)$.
+\end{rdef}
+\begin{columns}[T]
+\column{0.52\textwidth}
+\textbf{Computation} \paperref{Eq.~(5)}
+\begin{enumerate}\setlength\itemsep{1pt}\small
+\item Sort $a_{(1)}\le\dots\le a_{(m)}$.
+\item Append a copy shifted by $\pi$ (arcs may cross the seam $0\equiv\pi$).
+\item Among windows of $h$ consecutive values pick the narrowest: $r^\star=\arg\min_r\,[a_{(r+h-1)}-a_{(r)}]$.
+\item $\ASh_h(A)=\tfrac12\big(a_{(r^\star)}+a_{(r^\star+h-1)}\big)\bmod\pi$.
+\end{enumerate}
+{\small Ties: the window with the smallest left endpoint is used.}
+\column{0.44\textwidth}
+\begin{rkey}{Shorth $\neq$ median angle}
+The median is the middle-ranked angle. The shorth is the centre of the \emph{most concentrated half}. A few extreme angles --- or a second, smaller, cluster of angles --- cannot move it as long as the dominant concentration holds.
+\end{rkey}
+\end{columns}
+\end{frame}
+
+\begin{frame}{The angular shorth, worked on 12 angles ($h=\lceil12/2\rceil=\shh$)}
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+% axis 0..360 deg, 30 deg = 1 cm
+\draw[mute] (0,0) -- (12,0);
+\foreach \a in {0,30,...,360}{\draw[mute] ({\a/30},-0.07) -- ({\a/30},0.07);\node[lab,mute,below=3pt] at ({\a/30},0) {\a};}
+\draw[rule,dashed] (6,-0.6) -- (6,1.1);\node[lab,mute,above] at (6,1.1) {$\pi=180^\circ$ (copy begins)};
+\input{data/tikz_shorth_line.tex}
+\draw[rteal,fill=rteal!12,line width=1pt] ({\shlo/30},-0.28) rectangle ({\shhi/30},0.28);
+\draw[rteal,thick] ({\shmid/30},-0.55) -- ({\shmid/30},0.55);
+\node[lab,rteal,above=2pt,align=center] at ({\shmid/30},0.6) {shortest window\\width $\shw^\circ$, midpoint $\shmid^\circ$};
+\node[lab,mute,anchor=west] at (0,-1.05) {\textcolor{cmaj}{$\bullet$} the 12 angles\quad\textcolor{cext}{$\bullet$} copies shifted by $\pi$};
+\end{tikzpicture}
+
+\vspace{3pt}
+\begin{tikzpicture}
+\begin{axis}[width=0.78\textwidth,height=3.2cm,ybar stacked,bar width=9pt,xlabel={window start index $r$},ylabel={width $(^\circ)$},ymin=0,
+  xtick=data,unbounded coords=discard,enlarge x limits=0.04,legend style={font=\sffamily\tiny,draw=none,at={(0.02,0.97)},anchor=north west}]
+\addplot[fill=rblue!35,draw=none] table[col sep=comma,x=r,y=other] {data/shorth_widths.csv};\addlegendentry{window width}
+\addplot[fill=rteal,draw=none] table[col sep=comma,x=r,y=best] {data/shorth_widths.csv};\addlegendentry{minimum}
+\end{axis}
+\end{tikzpicture}
+\end{frame}
+
+
+
+% ============================================================ local, repeated, back to data
+\begin{frame}{Step 4 --- the local direction at one anchor}
+\begin{columns}[T]
+\column{0.46\textwidth}\centering
+\begin{tikzpicture}[scale=1.1]
+\projcircle
+\input{data/tikz_anchor_circle.tex}
+\arcdeg{\anchorlo}{\anchorhi}{rteal}{0.17}
+\node[lab,rteal,align=center] at (0,0.25) {shortest half-window};
+\node[lab,rteal,align=center] at (0,-0.25) {$\theta_i=\anchortheta^\circ$\ \ $w_i=\anchorw^\circ$};
+\end{tikzpicture}\\[-2pt]
+{\sffamily\scriptsize\color{mute}anchor of Step~2; \textcolor{cmaj}{$\bullet$} chords to majority, \textcolor{cbad}{$\bullet$} chords to the cluster}
+\column{0.5\textwidth}
+\begin{rdef}{Definition}{Local direction and width}{\S3.3}
+For anchor $i$ let $\Phi_i=\{\varphi_{ij}:j\ne i\}$ ($n-1$ chord directions) and
+\[\theta_i=\ASh_{h_L}(\Phi_i),\quad w_i=w_{h_L}(\Phi_i),\quad h_L=\lceil\tfrac{n-1}{2}\rceil.\]
+\end{rdef}
+\begin{itemize}\setlength\itemsep{3pt}\small
+\item $w_i$ small: strong directional agreement seen from anchor $i$.
+\item $w_i$ large: no clear direction from $i$.
+\item A \textcolor{cmaj}{majority} anchor sees most majority chords near the true direction; a \textcolor{cbad}{cluster} anchor sees its own cluster in every direction.
+\end{itemize}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Step 5 --- repeat: the same shorth applied to the $n$ local directions}
+\begin{columns}[T]
+\column{0.42\textwidth}\centering
+\begin{tikzpicture}[scale=0.85]
+\projcircle
+\input{data/tikz_local_circle.tex}
+\arcdeg{\outerlo}{\outerhi}{rblue}{0.17}
+\node[lab,rblue,align=center] at (0,0) {$\hat\theta=\thetahat^\circ$};
+\end{tikzpicture}
+\column{0.54\textwidth}
+\begin{tikzpicture}
+\begin{axis}[width=\textwidth,height=3.7cm,xlabel={local direction $\theta_i$ $(^\circ)$},ylabel={local width $w_i$ $(^\circ)$},xmin=0,xmax=180,ymin=0,
+ legend style={font=\sffamily\scriptsize,draw=none,at={(0.5,-0.32)},anchor=north,legend columns=2}]
+\addplot[scatter,only marks,mark size=1.3pt,scatter src=explicit symbolic,scatter/classes={0={mark=*,cmaj},1={mark=x,cbad}}] table[col sep=comma,x=theta,y=w,meta=bad] {data/local_dirs.csv};
+\addplot[draw=none,mark=*,cmaj] coordinates {(-10,-10)};\addlegendentry{majority anchors}
+\addplot[draw=none,mark=x,cbad] coordinates {(-10,-10)};\addlegendentry{cluster anchors}
+\end{axis}
+\end{tikzpicture}
+\end{columns}
+\vspace{-2pt}
+\begin{rdef}{Definition}{Repeated angular shorth}{Eq.~(7)--(8)}
+\[\hat\theta=\ASh_{h_O}\{\theta_1,\dots,\theta_n\},\qquad h_O=\lceil n/2\rceil.\]
+The large, tight group of majority-anchor directions wins; cluster anchors form a smaller group elsewhere.
+\end{rdef}
+\end{frame}
+
+\begin{frame}{Step 6 --- back to the original scale: slope and intercept}
+\begin{columns}[T]
+\column{0.5\textwidth}
+\begin{rdef}{Definition}{RAShR line}{Eq.~(9)--(10)}
+\[\begin{gathered}\hat\beta=\frac{s_y}{s_x}\tan\hat\theta,\quad \hat\alpha=\med_i\,(y_i-\hat\beta x_i)\\ \hat y=\hat\alpha+\hat\beta x\end{gathered}\]
+\end{rdef}
+\begin{itemize}\setlength\itemsep{2pt}\small
+\item Standardization maps slope $\beta$ to $\tan\theta=\beta\,s_x/s_y$; undo it.
+\item Valid for $\hat\theta\in[0,\pi)$ away from $\pi/2$ (vertical).
+\item Intercept: every point votes $y_i-\hat\beta x_i$; take the median.
+\end{itemize}
+\column{0.46\textwidth}
+\textbf{On the example of Fig.~1}
+\[\hat\theta=\thetahat^\circ,\ \ \frac{s_y}{s_x}=\frac{\syval}{\sxval}\ \Rightarrow\ \hat\beta=\betahat\]
+\begin{rwarn}{The intercept is less protected}
+$\hat\alpha=\alphahat$ here, while $\alpha^\star=1$: the median in Eq.~(10) uses \emph{all} points, so a $38\%$ cluster can displace the intercept even when the slope is right. The paper evaluates the \emph{slope} error $|\hat\beta-\beta^\star|$.
+\end{rwarn}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Algorithm and cost}
+\begin{columns}[T]
+\column{0.58\textwidth}
+\begin{rbox}{navy}{Algorithm 1 --- RAShR}{}{paper Alg.~1}
+\footnotesize
+\begin{algorithmic}[1]
+\Require $(x_i,y_i)_{i=1}^n$, fraction $q=\tfrac12$
+\State standardize: $u_i,v_i$ \Comment{Eq.~(2)}
+\For{$i=1,\dots,n$}
+  \State $\varphi_{ij}\gets\operatorname{atan2}(v_j-v_i,u_j-u_i)\bmod\pi$, $j\ne i$
+  \State $(\theta_i,w_i)\gets\ASh_{h_L}\{\varphi_{ij}\}$ \Comment{sort, double, slide}
+\EndFor
+\State $\hat\theta\gets\ASh_{h_O}\{\theta_i\}$
+\State $\hat\beta\gets(s_y/s_x)\tan\hat\theta$;\ \ $\hat\alpha\gets\med_i(y_i-\hat\beta x_i)$
+\State \Return $(\hat\alpha,\hat\beta)$
+\end{algorithmic}
+\end{rbox}
+\column{0.38\textwidth}
+\begin{rdef}{Cost}{}{\S3.4}
+$n$ anchors $\times$ sorting $n-1$ angles $\Rightarrow$ $O(n^2\log n)$ time; one anchor at a time $\Rightarrow$ $O(n)$ extra memory.
+\end{rdef}
+\small Same order as a direct repeated median; cheaper than the $O(n^3)$ exhaustive elemental-subset search used for LMS/LTS in the paper's implementations.\medskip
+
+\emphc{Deterministic}: no random sampling; ties go to the smallest left endpoint.
+\end{columns}
+\end{frame}
+
+% ============================================================ 3 THEORY
+\section{Theory}
+\begin{frame}{Proposition 1 and Corollary 1 --- exact fit}
+\begin{columns}[T]
+\column{0.64\textwidth}
+\begin{rthm}{Proposition 1}{Exact fit}{\S4.1}
+If $y_i=\alpha^\star+\beta^\star x_i$ for all $i$ with distinct $x_i$, then $(\hat\alpha,\hat\beta)=(\alpha^\star,\beta^\star)$.
+\end{rthm}
+\begin{rproof}
+After standardization all points still lie on a line, so every chord has the same direction $\theta^\star=\arctan(\beta^\star s_x/s_y)$. For each anchor the shortest-half arc has width $0$ and is centred at $\theta^\star$; the same holds at the outer stage, so $\hat\theta=\theta^\star$ and $\hat\beta=(s_y/s_x)\tan\theta^\star=\beta^\star$. Finally $y_i-\hat\beta x_i=\alpha^\star$ for every $i$, so $\hat\alpha=\alpha^\star$.
+\end{rproof}
+\begin{rthm}{Corollary 1}{Exact fit under contamination}{\S4.2}
+If $y_i=\alpha^\star+\beta^\star x_i$ on $G$ (distinct $x_i$), no point of $B$ lies on this line, and $|B|<\lceil\tfrac{n-1}{2}\rceil$, then $(\hat\alpha,\hat\beta)=(\alpha^\star,\beta^\star)$ wherever $B$ is placed.
+\end{rthm}
+\column{0.32\textwidth}
+\centering
+\begin{tikzpicture}[scale=0.62]
+\projcircle[90]
+\fill[rteal] ({\cR*cos(2*57)},{\cR*sin(2*57)}) circle (3pt);
+\draw[rteal,line width=2.4pt] plot[domain=2*57-2.5:2*57+2.5] ({(\cR+0.2)*cos(\x)},{(\cR+0.2)*sin(\x)});
+\node[lab,rteal,align=center] at (0,0) {all chords:\\ one direction\\ width $0$};
+\end{tikzpicture}\\[2pt]
+{\sffamily\scriptsize\color{mute}geometry: a zero-width window}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Proposition 2 --- translation and positive-scale equivariance}
+\begin{rthm}{Proposition 2}{}{\S4.1}
+Let $x_i'=a_x+b_xx_i$, $y_i'=a_y+b_yy_i$ with $b_x,b_y>0$. Then
+\[\hat\beta'=\frac{b_y}{b_x}\hat\beta,\qquad \hat\alpha'=a_y+b_y\hat\alpha-\hat\beta'a_x,\]
+and the estimate is invariant to permutations of the observations.
+\end{rthm}
+\begin{columns}[T]
+\column{0.5\textwidth}
+\begin{rproof}
+Medians are equivariant under translation and positive rescaling, MADs under positive rescaling. Hence the standardized data $(u_i,v_i)$ are \emph{unchanged}, all chords, shorths and $\hat\theta$ are unchanged, and only the back-transformation $\hat\beta=(s_y/s_x)\tan\hat\theta$ picks up the factor $b_y/b_x$.
+\end{rproof}
+\column{0.46\textwidth}
+\begin{rrem}{What is not claimed}
+Not \emph{fully} affine equivariant: $y\mapsto y+\gamma x$ changes the scale $s_y$ and the standardized cloud is not simply rotated, so the chord directions are not shifted rigidly by a constant.
+\end{rrem}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Lemma 1 --- adding separated angles does not move the shorth}
+\begin{columns}[T]
+\column{0.64\textwidth}
+\begin{rthm}{Lemma 1}{Separation}{\S4.2}
+Let $A,B$ be finite multisets on the projective circle, $h\le|A|$. Suppose the shortest arc containing $h$ elements of $A$ is unique, with width $w_h(A)$, and that every arc containing $\ge h$ elements of $A\cup B$ and at least one element of $B$ has width $>w_h(A)$. Then
+$\ASh_h(A\cup B)=\ASh_h(A).$
+\end{rthm}
+\begin{rproof}
+Let $I$ be the unique shortest $h$-arc of $A$. If $I$ contained a point of $B$ it would be an arc with $\ge h$ elements of $A\cup B$ meeting $B$ and of width $w_h(A)$, contradicting the hypothesis; so $I$ is still feasible for $A\cup B$. Any feasible arc meeting $B$ is strictly wider; one using only $A$ is not narrower than $I$, and equally wide only if it equals $I$. So $I$ is the unique shortest feasible arc.
+\end{rproof}
+\column{0.32\textwidth}\centering
+\begin{tikzpicture}[scale=0.62]
+\projcircle[90]
+\foreach \a in {58,61,63,65,66,68,70,72,75}{\pdot{\a}{cmaj}}
+\foreach \a in {5,22,112,137,150,170}{\pdot{\a}{cbad}}
+\arcdeg{58}{75}{rteal}{0.18}
+\draw[rred,dashed,line width=1pt] plot[domain=2*22:2*75,samples=40] ({(\cR+0.45)*cos(\x)},{(\cR+0.45)*sin(\x)});
+\node[lab,rteal] at (0,0.3) {$w_h(A)$};
+\node[lab,rred,align=center,font=\sffamily\tiny] at (0,-0.35) {any arc touching $B$\\is wider};
+\end{tikzpicture}\\[2pt]
+{\sffamily\scriptsize\color{mute}\textcolor{cmaj}{$A$}: dominant group;\ \textcolor{cbad}{$B$}: separated angles}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Separation conditions at the two stages}
+\begin{columns}[T]
+\column{0.52\textwidth}
+Let $G$ be the majority, $|G|>n/2$, $B=G^c$. For $i\in G$ let $\Phi_i^G=\{\varphi_{ij}:j\in G\setminus\{i\}\}$. The two shortest-half sizes are
+\[h_L=\Big\lceil\tfrac{n-1}{2}\Big\rceil,\qquad h_O=\Big\lceil\tfrac n2\Big\rceil.\]
+Since $|G|>n/2$: $|G|-1\ge\lfloor n/2\rfloor\ge h_L$ and $|G|\ge h_O$ --- both shorths \emph{can} be built from majority observations alone.
+\column{0.46\textwidth}
+\begin{rthm}{(L)}{Local separation}{}
+For every $i\in G$, Lemma~1 applies with $A=\Phi_i^G$, $B=\{\varphi_{ij}:j\in B\}$, $h=h_L$.
+\end{rthm}
+\begin{rthm}{(O)}{Outer separation}{}
+Lemma~1 applies to the local directions with $A=\{\theta_i:i\in G\}$, $B=\{\theta_i:i\in B\}$, $h=h_O$.
+\end{rthm}
+\end{columns}
+\vspace{2pt}
+\begin{rkey}{In words}
+(L): at every majority anchor, the shortest-half interval of majority--majority chords is narrower than any equally large interval involving a contaminated chord.\ (O): at the second stage, the concentrated majority-anchor directions form a narrower half-sample interval than any interval involving a contaminated-anchor direction.
+\end{rkey}
+\end{frame}
+
+\begin{frame}{Theorem 1 --- zero influence of separated contamination}
+\begin{rthm}{Theorem 1}{}{\S4.2, Eq.~(11)}
+Suppose (L) and (O) hold. Then
+\[\hat\theta=\ASh_{h_O}\Big\{\ASh_{h_L}(\Phi_i^G):\ i\in G\Big\}.\]
+So, once the standardization scales are fixed, $\hat\theta$ and hence $\hat\beta$ are determined by the majority observations only: moving, adding or removing contaminated observations does not change $\hat\beta$, provided (L), (O) and $|G|>n/2$ continue to hold and the marginal medians and MADs used in Eq.~(2) remain unchanged.
+\end{rthm}
+\begin{rproof}
+For $i\in G$, (L) and Lemma~1 give $\theta_i=\ASh_{h_L}(\Phi_i)=\ASh_{h_L}(\Phi_i^G)$. Hence the local direction at every majority anchor depends on majority--majority chords only. Applying (O) and Lemma~1 once more gives $\hat\theta=\ASh_{h_O}\{\theta_i:i\in G\}$, which is the claim.
+\end{rproof}
+\end{frame}
+
+\begin{frame}{Reading Theorem 1 --- the horizontal cluster-movement experiment}
+\begin{columns}[T]
+\column{0.58\textwidth}
+\begin{tikzpicture}
+\begin{axis}[width=\textwidth,height=5.2cm,xlabel={cluster position $c_x$},ylabel={estimated slope},xmin=8,xmax=40,ymin=-1.1,ymax=2.6,
+ legend style={font=\sffamily\scriptsize,draw=none,at={(0.5,-0.22)},anchor=north,legend columns=5}]
+\addplot[mLMS,thick,no marks] table[col sep=comma,x=cx,y=LMS] {data/move.csv};\addlegendentry{LMS}
+\addplot[mLTS,thick,no marks] table[col sep=comma,x=cx,y=LTS] {data/move.csv};\addlegendentry{LTS}
+\addplot[mMM,thick,no marks] table[col sep=comma,x=cx,y=MM] {data/move.csv};\addlegendentry{MM}
+\addplot[mRANSAC,thick,no marks] table[col sep=comma,x=cx,y=RANSAC] {data/move.csv};\addlegendentry{RANSAC}
+\addplot[mRAShR,very thick,no marks] table[col sep=comma,x=cx,y=RAShR] {data/move.csv};\addlegendentry{RAShR}
+\addplot[black,thin,dashed,domain=8:40] {2};
+\end{axis}
+\end{tikzpicture}
+\column{0.38\textwidth}
+\small
+A fixed 36-point cluster is moved horizontally; the majority sample is held fixed.\medskip
+
+\emphc{Paper}: the RAShR slope becomes \emph{exactly constant at $2.058$} once the cluster is sufficiently separated --- the mechanism of Theorem~1.\medskip
+
+\emphc{Here} (our sample): the same plateau, at a different value because the majority sample differs; residual-based fits jump toward the cluster at different positions.\medskip
+
+\begin{rrem}{Caveat}
+Theorem~1 needs $s_x,s_y$ and the medians in Eq.~(2) to stay fixed; contamination still enters them.
+\end{rrem}
+\end{columns}
+\end{frame}
+
+\section{Why LMS is attracted}
+\begin{frame}{Proposition 3 --- LMS is attracted by a point-mass cluster}
+\begin{columns}[T]
+\column{0.5\textwidth}
+\textbf{Model.}\ $(X,Y)\sim(1-\varepsilon)P_G+\varepsilon\,\delta_c$, where under $P_G$: $Y=\alpha^\star+\beta^\star X+e$, $e\sim N(0,\sigma^2)\perp X$, and $c=(c_x,c_y)$ lies at vertical distance $\Delta=|c_y-\alpha^\star-\beta^\star c_x|>0$ from the majority line.
+\[W(\ell)=\inf\{w:\Pr(|Y-\ell(X)|\le w)\ge\tfrac12\}.\]
+\column{0.46\textwidth}
+\begin{rthm}{Proposition 3}{}{\S4.3}
+There is $\varepsilon_0<\tfrac12$ such that for every $\varepsilon\in(\varepsilon_0,\tfrac12)$ every population LMS solution $\ell$ satisfies
+$|c_y-\ell(c_x)|\le W(\ell)$, with $W(\ell)\to0$ as $\varepsilon\uparrow\tfrac12$.\\
+Consequently $\ell^\star$ is not an LMS solution, and every LMS solution passes arbitrarily close to $c$.
+\end{rthm}
+\end{columns}
+\begin{rwarn}{Scope}
+Proved for \emph{population LMS}, asymptotically in $\varepsilon\uparrow\tfrac12$. For LTS and MM, whose scale or subset criteria behave similarly, no theorem is claimed: their behaviour is studied empirically (Section~5). Finite-sample experiments show \emph{how early} the attraction becomes visible.
+\end{rwarn}
+\end{frame}
+
+\begin{frame}{Proposition 3 --- why it holds}
+\begin{columns}[T]
+\column{0.58\textwidth}
+\begin{enumerate}\setlength\itemsep{4pt}\small
+\item Let $w_\varepsilon$ solve $(1-\varepsilon)\Pr(|e|\le w_\varepsilon)=\tfrac12$. For $\varepsilon\ge\tfrac14$: $w_\varepsilon\ge w_{1/4}>0$.
+\item Any strip that \emph{excludes} $c$ and holds half of the mass contains only majority mass; by Anderson's inequality $\Pr(|e-t|\le w)\le\Pr(|e|\le w)$, so its half-width is at least $w_\varepsilon\ge w_{1/4}$.
+\item Take any non-vertical line $\ell_c$ through $c$. A strip of half-width $w$ around it already holds the whole mass $\varepsilon$. It holds half of the total mass once $(1-\varepsilon)p(w)\ge\tfrac12-\varepsilon$, $p(w)=P_G(|Y-\ell_c(X)|\le w)>0$. As $\varepsilon\uparrow\tfrac12$ the right-hand side $\to0$, so $W(\ell_c)\to0$.
+\item Choose $\varepsilon_0\ge\tfrac14$ with $W(\ell_c)<\min\{w_{1/4},\Delta\}$ on $(\varepsilon_0,\tfrac12)$. An LMS solution has $W(\ell)\le W(\ell_c)<w_{1/4}$, so its optimal strip must contain $c$, i.e.\ $|c_y-\ell(c_x)|\le W(\ell)\le W(\ell_c)\to0$. Because $W(\ell_c)<\Delta$, the majority line $\ell^\star$ (at vertical distance $\Delta$ from $c$) cannot be a solution.
+\end{enumerate}
+\column{0.38\textwidth}
+\begin{tikzpicture}
+\pgfplotsset{strip/.style={width=\textwidth,height=3.4cm,xmin=-6,xmax=18,ymin=-14,ymax=15,xlabel={$x$},ylabel={$y$}}}
+\begin{axis}[strip,title={$\varepsilon$ close to $\tfrac12$}]
+\addplot[name path=u2,draw=none,domain=-6:17] {\aLMS+\bLMS*x+0.9};\addplot[name path=l2,draw=none,domain=-6:17] {\aLMS+\bLMS*x-0.9};
+\addplot[rorange!35] fill between[of=u2 and l2];
+\addplot[mymark,cmaj] table[col sep=comma] {data/fig1_majority.csv};
+\addplot[mymark,cbad,mark=x] table[col sep=comma] {data/fig1_cluster.csv};
+\end{axis}
+\end{tikzpicture}\\[2pt]
+{\sffamily\scriptsize\color{mute}a thin strip through the cluster only has to collect a little extra majority mass}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Remark 1 --- why an ``all chords'' concentration condition is too strong}
+\begin{columns}[T]
+\column{0.5\textwidth}
+\begin{rrem}{The tempting assumption}
+Assume every majority--majority chord lies within $\dpi$-distance $\delta<\pi/8$ of the true direction $\theta^\star$. One can then derive $\dpi(\hat\theta,\theta^\star)\le4\delta$.
+\end{rrem}
+\vspace{-2pt}
+\small Valid mathematically, but \textbf{useless for noisy regression}: two observations with nearly equal $x$ and a little vertical noise produce a chord with an almost arbitrary direction. Requiring \emph{all} majority chords near $\theta^\star$ is far too restrictive.
+\column{0.46\textwidth}
+\begin{rkey}{What RAShR needs instead}
+Concentration of a \emph{half-sample} of chords --- exactly what the shorth detects --- not concentration of all of them.
+\end{rkey}
+\vspace{2pt}
+\begin{tikzpicture}[scale=0.62]
+\projcircle[90]
+\foreach \a in {56,59,61,62,64,66,67,69,72,75,79,52,47}{\pdot{\a}{cmaj}}
+\foreach \a in {5,24,100,113,140,171}{\pdot{\a}{cmaj!40}}
+\arcdeg{56}{75}{rteal}{0.2}
+\node[lab,rteal,align=center,font=\sffamily\tiny] at (0,0) {half-sample\\ window};
+\end{tikzpicture}
+\end{columns}
+\end{frame}
+
+
+% ============================================================ 4 SIMULATION
+\section{Simulation evidence}
+\begin{frame}{Simulation design (paper, Section~5)}
+\begin{columns}[T]
+\column{0.52\textwidth}
+\begin{rdef}{Data}{}{}
+$n=100$, $x\sim U[-5,5]$, $y=1+2x+e$, $e\sim N(0,1)$. A fraction $f$ of the observations is replaced by one of three \emph{pre-declared} patterns:
+\begin{enumerate}\setlength\itemsep{1pt}
+\item compact high-leverage cluster at $(15,-10)$, Gaussian spread $0.3$;
+\item competing line $y=5-1.25x+e_c$, $e_c\sim N(0,0.5^2)$ over the same $x$-range;
+\item heteroscedastic majority (error sd $0.2+0.6|x|$) plus a competing line with noise sd $0.3$.
+\end{enumerate}
+\end{rdef}
+\begin{rdef}{Measures}{}{}
+Absolute slope error $|\hat\beta-2|$; failure $=\Pr(|\hat\beta-2|>0.5)$; 60 replications.
+\end{rdef}
+\column{0.44\textwidth}
+\begin{rdef}{Competitors}{}{}
+\textbf{LMS};\ \textbf{LTS}: ten best elemental fits $+$ 20 concentration steps;\ \textbf{MM}: LTS start, MAD scale, Tukey bisquare;\ \textbf{RANSAC}: two-point samples, MAD-based residual threshold, 1000 trials.
+\end{rdef}
+\begin{rwarn}{Reading our curves}
+The paper does not fully specify some constants (notably RANSAC's threshold). Our curves come from \emph{our} implementation with fixed seeds; they reproduce the \emph{pattern}, not each number. Paper values are always shown separately; see the appendix for a threshold-sensitivity study.
+\end{rwarn}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Standard settings: RAShR is not uniformly preferable}
+\begin{columns}[T]
+\column{0.47\textwidth}
+\textbf{Paper} --- median $|\hat\beta-2|$\medskip
+
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}lccc@{}}
+\toprule setting & RAShR & MM & RANSAC\\\midrule
+clean data & 0.033 & \textbf{0.024} & \textbf{0.022}\\
+20\% vertical & 0.040 & \textbf{0.027} & 0.037\\
+10\% bad leverage & 0.041 & \textbf{0.020} & 0.021\\
+\bottomrule\end{tabular}\medskip
+
+{\small On clean data and in standard robust-regression settings, \emphc{MM-regression is generally the more efficient choice}. RAShR's advantage appears only when the contaminating group is both \emph{large} and \emph{geometrically coherent}.}
+\column{0.52\textwidth}
+\textbf{Our re-implementation} (100 replications each)\medskip
+
+\renewcommand{\arraystretch}{1.3}\small
+\resizebox{\linewidth}{!}{\input{data/standard_table.tex}}\medskip
+
+{\small Same ordering as the paper: MM (and a tuned RANSAC) win on efficiency in standard settings.}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Near-half coherent contamination --- what the paper reports}
+\renewcommand{\arraystretch}{1.12}\footnotesize
+\begin{columns}[T]
+\column{0.5\textwidth}
+\textbf{(a) compact leverage cluster} --- failure \%\medskip
+
+\begin{tabular}{@{}lccccc@{}}\toprule $f$ & RAShR & LMS & LTS & MM & RANSAC\\\midrule
+36\% & 0 & 2 & 23 & 23 & 50\\ 40\% & 0 & 58 & 100 & 100 & 77\\ 44\% & 60 & $\ge97$ & $\ge97$ & $\ge97$ & $\ge97$\\ 46\% & \multicolumn{5}{c}{all methods fail}\\\bottomrule\end{tabular}
+
+{\footnotesize 44\%: RAShR succeeds in 40\% of samples (fails 60\%); every competitor fails in at least 97\%.}
+\column{0.46\textwidth}
+\textbf{(b) competing line} --- RAShR: no failures through 46\%\medskip
+
+\begin{tabular}{@{}lccccc@{}}\toprule $f$ & RAShR & LMS & LTS & MM & RANSAC\\\midrule 46\% & 0 & 60 & 93 & 93 & 12\\\bottomrule\end{tabular}\bigskip
+
+\textbf{(c) heteroscedastic majority $+$ line}\medskip
+
+\begin{tabular}{@{}lccccc@{}}\toprule $f$ & RAShR & LMS & LTS & MM & RANSAC\\\midrule 40\% & 0 & 25 & 62 & 60 & 5\\ 44\% & 3 & 83 & 100 & 98 & 40\\ 46\% & 8 & -- & -- & -- & --\\\bottomrule\end{tabular}
+\end{columns}
+\medskip
+\begin{rwarn}{Not a general ``near-50\%'' guarantee}
+Compact cluster: all methods fail at $46\%$. The experiments identify a \emph{finite regime}, $\approx35$--$46\%$, where RAShR can stay near the majority line after established methods have started to follow the competing structure; below $\approx30\%$ the high-breakdown methods behave alike.
+\end{rwarn}
+\end{frame}
+
+\begin{frame}{Failure rate versus contamination --- our re-implementation, with the paper's points}
+\begin{tikzpicture}
+\begin{groupplot}[group style={group size=3 by 1,horizontal sep=1.0cm},width=0.36\textwidth,height=4.6cm,
+  xlabel={contamination $f$},xmin=0.2,xmax=0.46,ymin=-3,ymax=103,xtick={0.2,0.3,0.4,0.46},xticklabel style={/pgf/number format/fixed},
+  legend style={font=\sffamily\scriptsize,draw=none},every axis plot/.append style={thick,mark size=1.1pt}]
+\nextgroupplot[title={(a) compact cluster},ylabel={failure rate (\%)}]
+\addplot[mRAShR,mark=*] table[col sep=comma,x=f,y=RAShR] {data/fail_compact.csv};
+\addplot[mLMS,mark=square*] table[col sep=comma,x=f,y=LMS] {data/fail_compact.csv};
+\addplot[mLTS,mark=triangle*] table[col sep=comma,x=f,y=LTS] {data/fail_compact.csv};
+\addplot[mMM,mark=diamond*] table[col sep=comma,x=f,y=MM] {data/fail_compact.csv};
+\addplot[mRANSAC,mark=x] table[col sep=comma,x=f,y=RANSAC] {data/fail_compact.csv};
+\addplot[only marks,mark=diamond,mark size=3pt,black,thin] coordinates {(0.36,0)(0.36,2)(0.36,23)(0.36,50)(0.40,0)(0.40,58)(0.40,100)(0.40,77)(0.44,60)};
+\nextgroupplot[title={(b) competing line}]
+\addplot[mRAShR,mark=*] table[col sep=comma,x=f,y=RAShR] {data/fail_line.csv};
+\addplot[mLMS,mark=square*] table[col sep=comma,x=f,y=LMS] {data/fail_line.csv};
+\addplot[mLTS,mark=triangle*] table[col sep=comma,x=f,y=LTS] {data/fail_line.csv};
+\addplot[mMM,mark=diamond*] table[col sep=comma,x=f,y=MM] {data/fail_line.csv};
+\addplot[mRANSAC,mark=x] table[col sep=comma,x=f,y=RANSAC] {data/fail_line.csv};
+\addplot[only marks,mark=diamond,mark size=3pt,black,thin] coordinates {(0.46,0)(0.46,60)(0.46,93)(0.46,12)};
+\nextgroupplot[title={(c) heteroscedastic $+$ line},legend to name=leg,legend columns=-1]
+\addplot[mRAShR,mark=*] table[col sep=comma,x=f,y=RAShR] {data/fail_funnel.csv};\addlegendentry{RAShR}
+\addplot[mLMS,mark=square*] table[col sep=comma,x=f,y=LMS] {data/fail_funnel.csv};\addlegendentry{LMS}
+\addplot[mLTS,mark=triangle*] table[col sep=comma,x=f,y=LTS] {data/fail_funnel.csv};\addlegendentry{LTS}
+\addplot[mMM,mark=diamond*] table[col sep=comma,x=f,y=MM] {data/fail_funnel.csv};\addlegendentry{MM}
+\addplot[mRANSAC,mark=x] table[col sep=comma,x=f,y=RANSAC] {data/fail_funnel.csv};\addlegendentry{RANSAC}
+\addplot[only marks,mark=diamond,mark size=3pt,black,thin] coordinates {(0.40,0)(0.40,25)(0.40,62)(0.40,60)(0.40,5)(0.44,3)(0.44,83)(0.44,100)(0.44,98)(0.44,40)(0.46,8)};
+\addlegendimage{only marks,mark=diamond,mark size=3pt,black,thin}\addlegendentry{paper value}
+\end{groupplot}
+\end{tikzpicture}
+
+\centering\ref{leg}\par
+{\sffamily\scriptsize\color{mute}Curves: our code, 60 replications per point, same designs as the paper. Diamonds: values reported in the paper's text (for (a) at 44\%: RAShR; other competitors $\ge97\%$ not drawn).}
+\end{frame}
+
+\begin{frame}{When the advantage disappears: cluster direction and spread}
+\begin{columns}[T]
+\column{0.6\textwidth}
+\begin{tikzpicture}
+\begin{axis}[width=\textwidth,height=5.0cm,xlabel={direction of the 38\% cluster from the majority centre $(^\circ)$},ylabel={failure rate (\%)},
+ xmin=-10,xmax=340,xtick={0,30,60,90,120,150,180,210,240,270,300,330},xticklabel style={font=\sffamily\tiny},ymin=-4,ymax=106,
+ legend style={font=\sffamily\scriptsize,draw=none,at={(0.5,1.02)},anchor=south},legend columns=5,every axis plot/.append style={thin,mark size=1.3pt}]
+\addplot[mRAShR,mark=*] table[col sep=comma,x=dir,y=RAShR] {data/dir_30.csv};\addlegendentry{RAShR}
+\addplot[mLMS,mark=square*] table[col sep=comma,x=dir,y=LMS] {data/dir_30.csv};\addlegendentry{LMS}
+\addplot[mLTS,mark=triangle*] table[col sep=comma,x=dir,y=LTS] {data/dir_30.csv};\addlegendentry{LTS}
+\addplot[mMM,mark=diamond*] table[col sep=comma,x=dir,y=MM] {data/dir_30.csv};\addlegendentry{MM}
+\addplot[mRANSAC,mark=x] table[col sep=comma,x=dir,y=RANSAC] {data/dir_30.csv};\addlegendentry{RANSAC}
+\draw[rred,dashed] (axis cs:30,-4) -- (axis cs:30,106);\draw[rred,dashed] (axis cs:210,-4) -- (axis cs:210,106);
+\end{axis}
+\end{tikzpicture}\\[-2pt]
+{\sffamily\scriptsize\color{mute}our code; distance 30 from the majority centre. Dashed red: $30^\circ$ and $210^\circ\equiv30^\circ$ (the line's extension) --- here $-150^\circ\equiv210^\circ$.}
+\column{0.36\textwidth}
+\small
+\textbf{Paper.}\ A $38\%$ cluster in twelve directions, two distances: RAShR has no failures in ten of twelve directions. The difficult ones are $\approx30^\circ$ and $-150^\circ$, where the cluster lies near the \emph{extension} of the majority line: chord directions overlap and separation is lost. At distance 30: RAShR fails $78\%$ ($30^\circ$) and $75\%$ ($-150^\circ$); competitors also perform poorly.\medskip
+
+\textbf{Compactness.}\ Spread $0.05$: RAShR $0$ failures, LMS $25\%$, LTS/MM $\approx98\%$. Spread $1$ or $3$: all four of LMS, LTS, MM, RAShR fail $\le2\%$ --- not a compact coherent group any more.
+\end{columns}
+\end{frame}
+
+\begin{frame}{Spread of the cluster --- our re-implementation (failure \%, compact cluster, 38\%)}
+\begin{columns}[T]
+\column{0.5\textwidth}
+\renewcommand{\arraystretch}{1.35}
+\input{data/spread_table.tex}\medskip
+
+{\small Reproduces the qualitative statement of the paper: a very tight cluster fools LMS/LTS/MM, a diffuse one does not. (Paper: spread $0.05$ gives LMS $25\%$, LTS/MM $\approx98\%$, RAShR $0$.)}
+\column{0.46\textwidth}
+\begin{rkey}{Geometry of the effect}
+A very tight cluster is almost a point mass: a thin strip through it (LMS) or a high-breakdown scale (MM) latches onto it, while \emph{its chords point everywhere} and so never form a competing half-window of directions.
+\end{rkey}
+\medskip
+\begin{rrem}{RANSAC at spread $\ge1$}
+Our RANSAC with the sklearn-style threshold $\mathrm{MAD}(y)$ is poor here; the paper reports no RANSAC numbers for this experiment. See the appendix on threshold sensitivity.
+\end{rrem}
+\end{columns}
+\end{frame}
+
+% ============================================================ 5 CONCLUSION
+\section{Conclusions}
+\begin{frame}{Strengths and limitations --- side by side}
+\begin{columns}[T]
+\column{0.485\textwidth}
+\begin{rbox}{rteal}{Where RAShR helps}{}{}
+\begin{itemize}\setlength\itemsep{3pt}
+\item A \emph{large, compact, coherent} contaminating group of about $35$--$46\%$.
+\item Competing structure that pulls residual criteria (LMS, LTS, MM; RANSAC for some designs).
+\item Deterministic output, $O(n^2\log n)$ time, $O(n)$ memory.
+\item Exact fit and zero influence of separated contamination (Prop.~1, Cor.~1, Thm~1).
+\end{itemize}
+\end{rbox}
+\column{0.485\textwidth}
+\begin{rbox}{rred}{Where it does not}{}{}
+\begin{itemize}\setlength\itemsep{3pt}
+\item Clean data, low contamination, vertical outliers, bad leverage: \textbf{MM / RANSAC} have smaller median errors.
+\item Cluster near the \emph{extension} of the majority line ($\approx30^\circ$, $-150^\circ$): separation is lost.
+\item Diffuse (non-compact) clusters: no advantage.
+\item Compact cluster at $46\%$: every method fails.
+\item Not fully affine equivariant; $s_x,s_y$ and the intercept use all data.
+\item Prop.~3 is a population-LMS statement only.
+\end{itemize}
+\end{rbox}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Summary: the geometry in one chain}
+\centering
+\begin{tikzpicture}[scale=0.86,transform shape,node distance=0.3cm,every node/.style={font=\sffamily\scriptsize,align=center},
+  box/.style={draw=rule,fill=soft,rounded corners=2pt,minimum height=0.95cm,minimum width=1.7cm,inner sep=3pt},
+  hl/.style={draw=rblue,fill=rblue,text=white,rounded corners=2pt,minimum height=0.95cm,minimum width=1.7cm,inner sep=3pt}]
+\node[box] (a) {points};
+\node[box,right=of a] (b) {standardize\\{\tiny med, 1.4826 MAD}};
+\node[box,right=of b] (c) {chords\\{\tiny atan2}};
+\node[box,right=of c] (d) {projective\\circle $[0,\pi)$};
+\node[box,right=of d] (e) {angular\\shorth};
+\node[box,right=of e] (f) {local\\$\theta_i,w_i$};
+\node[hl,right=of f] (g) {repeated\\shorth $\hat\theta$};
+\foreach \p/\q in {a/b,b/c,c/d,d/e,e/f,f/g}{\draw[-{Stealth[length=4pt]},mute] (\p) -- (\q);}
+\node[box,below=0.5cm of g] (h) {slope\\$\hat\beta=\tfrac{s_y}{s_x}\tan\hat\theta$};
+\node[hl,left=of h] (i) {line\\$\hat\alpha+\hat\beta x$};
+\node[box,right=of h,minimum width=2.6cm] (j) {intercept\\$\med(y_i-\hat\beta x_i)$};
+\draw[-{Stealth[length=4pt]},mute] (g) -- (h);\draw[-{Stealth[length=4pt]},mute] (h) -- (i);\draw[-{Stealth[length=4pt]},mute] (j) -- (h);
+\end{tikzpicture}
+\medskip
+
+\begin{columns}[T]\column{0.33\textwidth}\begin{rbox}{rteal}{Theory}{}{}\small exact fit, equivariance, zero influence under (L),(O); Prop.~3 for LMS.\end{rbox}
+\column{0.33\textwidth}\begin{rbox}{rblue}{Evidence}{}{}\small finite regime $35$--$46\%$; compact, separated clusters; MM wins when data are clean.\end{rbox}
+\column{0.33\textwidth}\begin{rbox}{rorange}{Use it when}{}{}\small a large coherent group competes with the majority and a deterministic fit is wanted.\end{rbox}\end{columns}
+\end{frame}
+
+\begin{frame}{References (as cited in the paper) and package contents}
+\small
+\begin{columns}[T]
+\column{0.6\textwidth}
+\begin{itemize}\setlength\itemsep{1.2pt}\scriptsize
+\item Andrews et al.\ (1972). \emph{Robust Estimates of Location: Survey and Advances}. Princeton UP. \hfill\textcolor{mute}{shorth}
+\item Theil (1950). A rank-invariant method of linear and polynomial regression analysis. \emph{Indag.\ Math.} 12.
+\item Sen (1968). Estimates of the regression coefficient based on Kendall's tau. \emph{JASA} 63.
+\item Siegel (1982). Robust regression using repeated medians. \emph{Biometrika} 69.
+\item H\"ossjer, Rousseeuw, Croux (1994). Asymptotics of the repeated median slope estimator. \emph{Ann.\ Stat.} 22.
+\item Rousseeuw (1984). Least median of squares regression. \emph{JASA} 79.
+\item Rousseeuw, Leroy (1987). \emph{Robust Regression and Outlier Detection}. Wiley.
+\item Rousseeuw, Van Driessen (2006). Computing LTS regression for large data sets. \emph{DMKD} 12.
+\item Yohai (1987). High breakdown-point and high efficiency robust estimates for regression. \emph{Ann.\ Stat.} 15.
+\item Fischler, Bolles (1981). Random sample consensus. \emph{CACM} 24.
+\item Hough (1962), US Patent 3,069,654;\ Goldenshluger, Zeevi (2004). The Hough transform estimator. \emph{Ann.\ Stat.} 32.
+\item Komsta (2016). Directional median analysis. \emph{Chemom.\ Intell.\ Lab.\ Syst.} 153.
+\item Maronna, Martin, Yohai, Salibi\'an-Barrera (2019). \emph{Robust Statistics: Theory and Methods (with R)}, 2nd ed. Wiley.
+\end{itemize}
+{\sffamily\tiny\color{mute}All references as listed in the paper (Dharavath \& Srivastava, \emph{Robust Linear Regression via the Repeated Angular Shorth}).}
+\column{0.36\textwidth}
+\begin{rkey}{This package}
+Manim video (60\,fps, narrated) $\cdot$ PowerPoint (geometry-first) $\cdot$ interactive HTML slides $\cdot$ this Beamer deck $\cdot$ Streamlit lab with a simulation sandbox $\cdot$ notebooks. All use one shared estimator, one notation and the same paper numbers.
+\end{rkey}
+\end{columns}
+\end{frame}
+
+% ============================================================ APPENDIX
+\appendix
+\section{Appendix}
+\begin{frame}{Appendix A --- Corollary 1: proof}
+\begin{rthm}{Corollary 1}{}{\S4.2}
+If $y_i=\alpha^\star+\beta^\star x_i$ on $G$ (distinct $x_i$), no point of $B$ lies on the line, and $|B|<\lceil\tfrac{n-1}{2}\rceil$, then $(\hat\alpha,\hat\beta)=(\alpha^\star,\beta^\star)$ regardless of the positions of $B$.
+\end{rthm}
+\begin{rproof}
+At a majority anchor every chord to another majority point has the same direction $\theta^\star$: a zero-width interval with $|G|-1\ge h_L$ elements, hence feasible. A chord from a majority anchor to a contaminated point has direction $\theta^\star$ only if that point lies on the majority line, which is excluded. Any zero-width interval at another direction contains at most $|B|<h_L$ contaminated chords, so it cannot meet the half-sample requirement. Hence $\theta_i=\theta^\star$ for all $i\in G$. At the outer stage at least $|G|\ge h_O$ local directions equal $\theta^\star$ while fewer than $h_O$ arise from contaminated anchors, so these cannot form a competing zero-width interval: $\hat\theta=\theta^\star$ and $\hat\beta=\beta^\star$. Finally more than half of the residuals $y_i-\hat\beta x_i$ equal $\alpha^\star$ ($i\in G$), so their median is $\alpha^\star$.
+\end{rproof}
+\end{frame}
+
+\begin{frame}{Appendix B --- how the numbers in this package relate to the paper}
+\small\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}p{3.9cm}p{4.2cm}p{4.5cm}@{}}\toprule
+\textbf{Quantity} & \textbf{Paper} & \textbf{Our implementation}\\\midrule
+Fig.~1 slopes (RAShR / OLS / LMS / MM) & $+2.02$ / $-0.53$ / $-0.20$ / $-0.26$ & $+2.02$ / $-0.53$ / $-0.21$ / $-0.29$ (seed 3)\\
+Compact cluster, 44\%: RAShR fails & 60\% (succeeds 40\%) & 55\% (60 reps, appendix C samples)\\
+Directions at distance 30: $30^\circ$ / $-150^\circ$ & 78\% / 75\% & see previous slide (RAShR 73\% at $30^\circ$)\\
+Cluster-move plateau & $2.058$ & different value (different majority sample); constant plateau reproduced\\
+RANSAC (compact, $36\%$) & 50\% fails & depends strongly on the threshold (appendix C)\\
+\bottomrule\end{tabular}\medskip
+
+{\small Everything is deterministic given the seeds in the code. Differences in competitor numbers stem from unspecified tuning constants, not from tuning toward the paper.}
+\end{frame}
+
+\begin{frame}{Appendix C --- RANSAC threshold sensitivity (failure \%, 60 replications)}
+\scriptsize\renewcommand{\arraystretch}{1.2}
+\input{data/ransac_table.tex}\medskip
+
+\small RANSAC's outcome depends strongly on a constant the paper only calls ``MAD-based''. With an \emph{oracle} threshold ($2$--$2.5\times$ the true noise sd) RANSAC is far stronger than with $\mathrm{MAD}(y)$, but still fails at $44$--$46\%$ compact contamination, and RAShR (same samples) keeps the majority line up to $40\%$. Honest conclusion: RAShR's advantage is real but its size depends on how well RANSAC is tuned.
+\end{frame}
+
+\end{document}

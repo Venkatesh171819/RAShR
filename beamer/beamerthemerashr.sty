@@ -1,0 +1,138 @@
+% beamerthemerashr.sty -- a quiet, classical research-seminar theme (xelatex).
+% Serif text and maths, sans-serif only for diagram labels and small tags.
+\ProvidesPackage{beamerthemerashr}
+\RequirePackage{fontspec}
+\RequirePackage{amsmath,amssymb,mathtools}
+\RequirePackage{unicode-math}
+\setmainfont{Latin Modern Roman}
+\setsansfont{Inter}[Scale=0.92]
+\setmonofont{Latin Modern Mono}
+\setmathfont{Latin Modern Math}
+\RequirePackage{microtype}
+\RequirePackage{xcolor}
+\RequirePackage{tikz}
+\RequirePackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\RequirePackage{booktabs}
+\RequirePackage{array}
+\usetikzlibrary{calc,arrows.meta,positioning,decorations.pathreplacing,decorations.markings,patterns,backgrounds,fit}
+\RequirePackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{fillbetween,groupplots}
+
+% ---- palette
+\definecolor{navy}{HTML}{10213A}
+\definecolor{rblue}{HTML}{1F6FEB}
+\definecolor{rteal}{HTML}{0FA3B1}
+\definecolor{rred}{HTML}{D1495B}
+\definecolor{rorange}{HTML}{F28F3B}
+\definecolor{rpurple}{HTML}{7B4FB5}
+\definecolor{rgreen}{HTML}{17A398}
+\definecolor{soft}{HTML}{F4F7FB}
+\definecolor{rule}{HTML}{D5DCE8}
+\definecolor{mute}{HTML}{5B6B82}
+\definecolor{cmaj}{HTML}{3E7CE0}
+\definecolor{cbad}{HTML}{D1495B}
+\definecolor{cext}{HTML}{B7A3DB}
+\definecolor{mRAShR}{HTML}{1F6FEB}\definecolor{mLMS}{HTML}{E4572E}\definecolor{mLTS}{HTML}{17A398}
+\definecolor{mMM}{HTML}{F2A541}\definecolor{mRANSAC}{HTML}{7B4FB5}\definecolor{mOLS}{HTML}{8A94A6}
+
+% ---- beamer shell
+\mode<presentation>
+\usefonttheme{serif}\usefonttheme{professionalfonts}
+\usecolortheme{default}
+\setbeamercolor{normal text}{fg=navy,bg=white}
+\setbeamercolor{structure}{fg=rblue}
+\setbeamercolor{itemize item}{fg=rteal}
+\setbeamercolor{itemize subitem}{fg=rteal}
+\setbeamercolor{enumerate item}{fg=rblue}
+\setbeamercolor{footnote}{fg=mute}
+\setbeamerfont{footnote}{size=\scriptsize}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{itemize items}[circle]
+\setbeamertemplate{itemize subitem}{\textendash}
+\setbeamerfont{itemize/enumerate body}{size=\normalsize}
+\setbeamerfont{itemize/enumerate subbody}{size=\small}
+\setlength{\leftmargini}{1.1em}
+\setbeamersize{text margin left=1.1cm,text margin right=1.1cm}
+
+\newcommand{\sectiontag}{}
+\setbeamertemplate{frametitle}{%
+  \vskip 0.28cm
+  {\sffamily\scriptsize\bfseries\color{rteal}\MakeUppercase{\insertsection}\par}
+  \vskip -0.05cm
+  {\color{navy}\fontsize{15}{17}\selectfont\bfseries\insertframetitle\par}
+  \vskip 0.08cm
+  {\color{rule}\hrule height 0.6pt}\vskip 0.1cm}
+
+\setbeamertemplate{headline}{%
+  \begin{tikzpicture}[remember picture,overlay]
+    \fill[rule] (current page.north west) rectangle ([yshift=-2.2pt]current page.north east);
+    \pgfmathsetmacro{\prog}{min(1,\insertframenumber/max(\inserttotalframenumber,1))}
+    \fill[rblue] (current page.north west) rectangle ([yshift=-2.2pt,xshift=\prog*\paperwidth]current page.north east);
+  \end{tikzpicture}}
+\setbeamertemplate{footline}{%
+  \leavevmode\hbox{\hspace*{1.1cm}\begin{beamercolorbox}[wd=.72\paperwidth,ht=2.6ex,dp=1.2ex,left]{footline}
+    {\sffamily\tiny\color{mute}Dharavath \& Srivastava \,·\, Repeated Angular Shorth Regression \,·\, a geometric and mathematical walk-through}
+  \end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.2\paperwidth,ht=2.6ex,dp=1.2ex,right]{footline}
+    {\sffamily\tiny\color{mute}\insertframenumber\,/\,\inserttotalframenumber}
+  \end{beamercolorbox}}\vskip 0.15cm}
+
+% title page
+\setbeamertemplate{title page}{%
+  \begin{tikzpicture}[remember picture,overlay]
+    \fill[navy] (current page.south west) rectangle (current page.north east);
+    \begin{scope}[shift={([xshift=-3.3cm,yshift=-4.5cm]current page.north east)},scale=0.8]
+      \draw[white!45,line width=1.4pt] (0,0) circle (2.3);
+      \foreach \a in {0,30,...,150}{\fill[white!55] ({2.3*cos(2*\a)},{2.3*sin(2*\a)}) circle (1.3pt);
+        \node[white!50,font=\sffamily\tiny] at ({2.65*cos(2*\a)},{2.65*sin(2*\a)}) {\a°};}
+      \foreach \a in {30,34,37,41,44,28,32,39,36,43,31,35}{\fill[rblue!80!white] ({2.3*cos(2*\a)},{2.3*sin(2*\a)}) circle (2.4pt);}
+      \foreach \a in {120,133,141,150,158}{\fill[rred] ({2.3*cos(2*\a)},{2.3*sin(2*\a)}) circle (2.4pt);}
+      \draw[rteal,line width=3pt] plot[domain=56:88,samples=20] ({2.46*cos(\x)},{2.46*sin(\x)});
+    \end{scope}
+  \end{tikzpicture}
+  \vbox{}\vfill
+  \begin{flushleft}\hspace*{0.6cm}\begin{minipage}{0.55\paperwidth}
+    {\sffamily\scriptsize\bfseries\color{rteal}{\addfontfeature{LetterSpace=14}RAShR}\par}\vskip 0.25cm
+    {\color{white}\fontsize{27}{31}\selectfont\bfseries\inserttitle\par}\vskip 0.35cm
+    {\color{white!78!navy}\large\itshape\insertsubtitle\par}\vskip 0.7cm
+    {\color{white}\insertauthor\par}\vskip 0.1cm
+    {\color{white!65!navy}\small\insertinstitute\par}\vskip 0.5cm
+    {\color{white!55!navy}\footnotesize\insertdate}
+  \end{minipage}\end{flushleft}\vfill\vskip 0.8cm}
+
+% section divider
+\newcommand{\sectionslide}[3]{%
+  {\setbeamertemplate{headline}{}\setbeamertemplate{footline}{}
+  \begin{frame}[plain]
+    \begin{tikzpicture}[remember picture,overlay]
+      \fill[navy] (current page.south west) rectangle (current page.north east);
+      \node[anchor=west,text=rteal,font=\fontsize{60}{60}\selectfont\bfseries] at ([xshift=1.2cm,yshift=1.1cm]current page.west) {#1};
+      \node[anchor=west,text=white,font=\fontsize{26}{30}\selectfont\bfseries,align=left] at ([xshift=1.2cm,yshift=-0.2cm]current page.west) {#2};
+      \node[anchor=west,text=white!65!navy,font=\large\itshape,align=left,text width=0.8\paperwidth] at ([xshift=1.2cm,yshift=-1.5cm]current page.west) {#3};
+    \end{tikzpicture}
+  \end{frame}}}
+
+% ---- boxes for mathematical statements:  \begin{rthm}{kind}{title}{paper ref}
+\newenvironment{rbox}[4]{%
+  \begin{tcolorbox}[enhanced,breakable,colback=#1!5!white,colframe=#1,boxrule=0pt,leftrule=2.6pt,toprule=0pt,bottomrule=0pt,
+    rightrule=0pt,arc=0pt,outer arc=0pt,left=7pt,right=6pt,top=3pt,bottom=3pt,before skip=3pt,after skip=3pt]
+  {\sffamily\bfseries\small\color{#1!80!black}#2\unskip\ifx\relax#3\relax\else\ {\mdseries(#3)}\fi
+   \ifx\relax#4\relax\else\hfill{\mdseries\scriptsize\color{mute}[#4]}\fi}\par\vspace{2pt}\ignorespaces}{\end{tcolorbox}}
+\newenvironment{rthm}[3]{\begin{rbox}{rblue}{#1}{#2}{#3}}{\end{rbox}}
+\newenvironment{rdef}[3]{\begin{rbox}{rteal}{#1}{#2}{#3}}{\end{rbox}}
+\newenvironment{rrem}[1]{\begin{rbox}{rorange}{#1}{}{}}{\end{rbox}}
+\newenvironment{rwarn}[1]{\begin{rbox}{rred}{#1}{}{}}{\end{rbox}}
+\newenvironment{rkey}[1]{\begin{rbox}{navy}{#1}{}{}}{\end{rbox}}
+\newenvironment{rproof}{\par\smallskip\noindent{\itshape Proof.}\ }{\hfill$\square$\par\smallskip}
+
+% ---- shortcuts
+\newcommand{\paperref}[1]{{\sffamily\scriptsize\color{mute}[paper: #1]}}
+\newcommand{\dpi}{d_{\pi}}
+\newcommand{\ASh}{\mathrm{ASh}}
+\newcommand{\med}{\operatorname{med}}
+\newcommand{\MAD}{\mathrm{MAD}}
+\DeclareMathOperator{\atantwo}{atan2}
+\newcommand{\emphc}[1]{{\bfseries\color{rblue}#1}}
+\mode<all>

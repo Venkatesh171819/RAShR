@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAShR — Repeated Angular Shorth Regression</title>
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(', '\\)'], ['$', '$']], displayMath: [['\\[', '\\]'], ['$$', '$$']] }, svg: { fontCache: 'global' } };
+</script>
+<script async src="vendor/tex-svg.js" onerror="var s=document.createElement('script');s.async=1;s.src='https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js';document.head.appendChild(s)"></script>
+<style>
+:root{--ink:#10213A;--muted:#5B6B82;--line:#E3E8F0;--soft:#F4F7FB;--maj:#3E7CE0;--rashr:#1F6FEB;--bad:#D1495B;--teal:#0FA3B1;--orange:#F28F3B;
+--LMS:#E4572E;--LTS:#17A398;--MM:#F2A541;--RANSAC:#7B4FB5;--OLS:#8A94A6}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font-family:"Inter","Segoe UI","Helvetica Neue",Arial,sans-serif;color:var(--ink);background:#fff}
+#deck{position:fixed;inset:0 0 44px 0;overflow:hidden}
+.slide{position:absolute;inset:0;padding:28px 48px 20px;overflow:auto;display:none;animation:fade .35s ease}
+.slide.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.kicker{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);font-weight:700;margin-bottom:4px}
+h1,h2,h3{margin:.1em 0 .35em;letter-spacing:-.4px}
+h2{font-size:1.85rem} h3{font-size:1.15rem;color:var(--ink)}
+p,li{line-height:1.55;font-size:1.02rem}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:start}
+.cols.c32{grid-template-columns:1.5fr 1fr}.cols.c23{grid-template-columns:1fr 1.5fr}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 18px;box-shadow:0 1px 3px rgba(16,33,58,.06)}
+.card.soft{background:var(--soft)} .card.teal{border-left:6px solid var(--teal)} .card.warn{border-left:6px solid var(--orange);background:#FFF8F0}
+.card.red{border-left:6px solid var(--bad)} .card.blue{border-left:6px solid var(--rashr)}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.hero{background:linear-gradient(125deg,#10213A 0%,#17406F 62%,#1F6FEB 125%);color:#fff;border-radius:22px;padding:56px 56px;margin-top:6vh}
+.hero h1{font-size:2.7rem;color:#fff}.hero p{color:#CFE0FA;font-size:1.15rem}
+.pill{display:inline-block;border-radius:999px;padding:2px 12px;font-size:.78rem;font-weight:600;background:rgba(255,255,255,.15);margin-right:6px}
+img.fig{max-width:100%;border-radius:10px;border:1px solid var(--line)}
+.eq{background:var(--soft);border-radius:12px;padding:6px 14px;margin:8px 0;overflow-x:auto}
+.quote{font-size:1.5rem;line-height:1.4;font-weight:600;border-left:6px solid var(--rashr);padding:6px 20px;margin:18px 0}
+.quote b{color:var(--rashr)}
+.small{color:var(--muted);font-size:.86rem}
+.tag{font-size:.72rem;font-weight:700;border-radius:6px;padding:1px 7px;color:#fff;margin-right:4px}
+.pipeline{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0}
+.pipeline .step{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-weight:600;font-size:.9rem}
+.pipeline .step.hl{background:var(--rashr);color:#fff;border-color:var(--rashr)}
+.pipeline .arr{color:var(--muted)}
+canvas{background:#fff;border:1px solid var(--line);border-radius:12px;max-width:100%;touch-action:none}
+.ctrl{display:flex;flex-wrap:wrap;gap:14px 20px;align-items:center;margin:8px 0;font-size:.92rem}
+.ctrl label{display:flex;gap:8px;align-items:center}
+input[type=range]{accent-color:var(--rashr)}
+button{border:0;background:var(--rashr);color:#fff;border-radius:9px;padding:7px 14px;font-weight:600;cursor:pointer}
+button.ghost{background:var(--soft);color:var(--ink);border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;font-size:.93rem} th,td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:center} th{background:var(--soft)}
+td.l,th.l{text-align:left} .best{font-weight:700;color:var(--rashr)}
+.read{font-variant-numeric:tabular-nums;font-weight:600}
+#bar{position:fixed;left:0;right:0;bottom:0;height:44px;background:var(--ink);color:#fff;display:flex;align-items:center;gap:12px;padding:0 16px;z-index:10}
+#bar button{background:rgba(255,255,255,.14);padding:5px 12px}
+#prog{flex:1;height:5px;background:rgba(255,255,255,.2);border-radius:5px;overflow:hidden}#prog i{display:block;height:100%;background:var(--teal);width:0}
+#menu{position:fixed;left:0;top:0;bottom:44px;width:290px;background:#fff;border-right:1px solid var(--line);z-index:9;transform:translateX(-100%);transition:transform .25s;overflow:auto;padding:14px}
+#menu.open{transform:none;box-shadow:6px 0 24px rgba(16,33,58,.15)}
+#menu a{display:block;padding:5px 8px;border-radius:7px;color:var(--ink);text-decoration:none;font-size:.9rem;cursor:pointer}#menu a:hover{background:var(--soft)}
+#menu .sec{font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--teal);font-weight:700;margin:12px 0 2px}
+@media (max-width:900px){.slide{padding:18px 18px}.cols,.cols.c32,.cols.c23,.grid3,.grid4{grid-template-columns:1fr}h2{font-size:1.4rem}.hero{padding:30px 24px}.hero h1{font-size:1.8rem}}
+</style>
+</head>
+<body>
+<div id="menu"></div>
+<div id="deck">
+
+<!-- ========== 0 TITLE ========== -->
+<section class="slide" data-sec="Start" data-title="Title">
+ <div class="hero">
+  <span class="pill">NIT Warangal</span><span class="pill">Robust statistics</span><span class="pill">Geometry of pairwise chords</span>
+  <h1>Repeated Angular Shorth Regression</h1>
+  <p>Robust line fitting by asking <b>which direction do pairwise chords agree on?</b> — not <i>which line has small residuals?</i></p>
+  <p class="small" style="color:#9FB7DE">Based on “Robust Linear Regression via the Repeated Angular Shorth” — V. Dharavath &amp; V. Srivastava. Use ← → keys, or the ☰ menu. Slides with sliders are interactive.</p>
+ </div>
+</section>
+
+<!-- ========== 1 PROBLEM ========== -->
+<section class="slide" data-sec="Problem" data-title="A surprising failure">
+ <div class="kicker">The problem</div><h2>Robust methods can still follow the wrong line</h2>
+ <div class="cols c32"><div><img class="fig" src="{{IMG:fig1_motivation}}" alt="Fig 1 style example"></div>
+ <div>
+  <p>100 points: <b>62%</b> follow $y=1+2x$; <b>38%</b> form a compact cluster at a high-leverage position.</p>
+  <p>OLS, LMS and MM all return <b>negative</b> slopes. RAShR returns <b style="color:var(--rashr)">+2.02</b> in the paper's example (+2.02 in the paper; our re-created sample gives a similar value).</p>
+  <div class="card warn"><b>Why is this surprising?</b> These estimators have a breakdown point near ½ — they cannot be driven <i>to infinity</i>. But “bounded” is not the same as “follows the majority trend”.</div>
+ </div></div>
+</section>
+
+<section class="slide" data-sec="Problem" data-title="Vocabulary">
+ <div class="kicker">Terminology — built up step by step</div><h2>From data to coherent contamination</h2>
+ <div class="grid3">
+  <div class="card"><h3>Outlier vs contamination</h3><p><b>Outlier</b>: an unusual single point. <b>Contamination</b>: observations that do not follow the main pattern — possibly many.</p></div>
+  <div class="card"><h3>Coherent contamination</h3><p>Contaminated points related to each other: a compact cluster or a competing line. <i>Ordinary</i> contamination is scattered arbitrarily.</p></div>
+  <div class="card"><h3>High leverage</h3><p>A point whose $x$ is far from the bulk of the $x$'s. It has a strong effect on the slope. <i>Ordinary</i> contamination can sit at normal $x$.</p></div>
+  <div class="card"><h3>Breakdown point</h3><p>Fraction of observations that can be replaced by arbitrary values before the estimate can be driven arbitrarily far. A <i>worst-case boundedness</i> guarantee.</p></div>
+  <div class="card"><h3>Residual / residual-based</h3><p>Residual: $y_i-\hat y_i$ (observed minus predicted). <b>Residual-based method</b>: fits by judging candidate lines through the size of residuals (LMS, LTS, MM…).</p></div>
+  <div class="card blue"><h3>Two desirable properties</h3><p>(1) estimate stays bounded; (2) estimate follows the line supported by the <b>dominant structure</b>. High breakdown gives (1), not automatically (2).</p></div>
+ </div>
+</section>
+
+<section class="slide" data-sec="Problem" data-title="Why residuals mislead">
+ <div class="kicker">Residual view</div><h2>A narrow strip through the cluster looks attractive</h2>
+ <div class="cols c32"><div><img class="fig" src="{{IMG:fig10_lms_attraction}}" alt="LMS strips"></div>
+ <div>
+  <p>LMS looks for the narrowest vertical strip containing half the data. A line through a compact cluster only needs <b>a little extra mass from the majority</b> to reach 50%.</p>
+  <div class="card soft">$W(\ell)=\inf\{w:\Pr(|Y-\ell(X)|\le w)\ge\tfrac12\}$</div>
+  <p class="small">Population statement (Proposition 3, shown later): as contamination $\varepsilon\uparrow\tfrac12$ a line through a point-mass cluster achieves $W(\ell)\to0$. The strip around the <i>true</i> line always needs positive width because of noise.</p>
+ </div></div>
+</section>
+
+<section class="slide" data-sec="Problem" data-title="The conceptual shift">
+ <div class="kicker">The central idea</div><h2>Change the question</h2>
+ <div class="quote">Instead of asking <span style="color:var(--bad)">“Which line produces small residuals?”</span><br>RAShR asks <b>“Which direction receives the strongest agreement from pairwise chords?”</b></div>
+ <div class="pipeline"><span class="step">data</span><span class="arr">→</span><span class="step">chords</span><span class="arr">→</span><span class="step">chord directions</span><span class="arr">→</span><span class="step">angular concentration</span><span class="arr">→</span><span class="step">shorth</span><span class="arr">→</span><span class="step hl">repeated angular shorth</span><span class="arr">→</span><span class="step hl">RAShR</span></div>
+ <div class="grid3">
+  <div class="card"><h3>Majority–majority chords</h3><p>Seen from many majority points, they all point roughly along the true line → <b>concentrated</b> angles.</p></div>
+  <div class="card"><h3>Majority–cluster chords</h3><p>The cluster is viewed from many different places → directions <b>spread</b> over a wide range.</p></div>
+  <div class="card"><h3>Consequence</h3><p>A cluster that is very influential in <i>residual space</i> need not dominate in <i>direction space</i>.</p></div>
+ </div>
+</section>
+
+<!-- ========== RELATED WORK ========== -->
+<section class="slide" data-sec="Related work" data-title="A story of pairwise ideas">
+ <div class="kicker">Related work as a story</div><h2>Where RAShR sits</h2>
+ <div class="grid4">
+  <div class="card"><h3>Theil–Sen</h3><p class="small">object: all $\binom n2$ pairwise slopes<br>measures: their median<br>limit: breakdown ≈ 29%<br><b>→ RAShR keeps the pairwise view</b></p></div>
+  <div class="card"><h3>Siegel repeated median</h3><p class="small">median of per-anchor median slopes<br>breakdown 50%<br>limit: rank effect from one-sided contamination<br><b>→ RAShR repeats, but aggregates by concentration</b></p></div>
+  <div class="card"><h3>LMS / LTS</h3><p class="small">narrow strip / trimmed residuals<br>judge lines by residuals<br>limit: coherent clusters can win the criterion</p></div>
+  <div class="card"><h3>MM</h3><p class="small">high-breakdown start + M-step<br>efficiency + robustness<br>limit: inherits start (LTS/S) behaviour</p></div>
+  <div class="card"><h3>RANSAC</h3><p class="small">2-point models, count inliers<br>consensus in residual space<br>strong competitor on some geometries</p></div>
+  <div class="card"><h3>Hough transform</h3><p class="small">vote in parameter space<br>mode seeking; cube-root rate<br><b>cousin of angular concentration</b></p></div>
+  <div class="card"><h3>Shorth</h3><p class="small">shortest interval with half the data (Andrews et al.)<br>mode-seeking location<br><b>→ the building block of RAShR</b></p></div>
+  <div class="card"><h3>Directional regression</h3><p class="small">treats line orientation as a geometric quantity (Komsta)<br><b>→ same spirit: angles, not vertical residuals</b></p></div>
+ </div>
+</section>
+
+<section class="slide" data-sec="Related work" data-title="Repeated median, geometrically">
+ <div class="kicker">Siegel's repeated median</div><h2>Median of local medians</h2>
+ <div class="cols c32"><div><img class="fig" src="{{IMG:fig12_repeated_median}}" alt="repeated median"></div>
+ <div><ol><li>choose an anchor</li><li>draw chords to all others</li><li>compute pairwise slopes</li><li>take the median for that anchor</li><li>repeat for every anchor</li><li>take the median of the local medians</li></ol>
+ <div class="eq">$$\hat\beta_{RM}=\operatorname{med}_i\operatorname{med}_{j\ne i}\frac{y_j-y_i}{x_j-x_i}$$</div>
+ <div class="card blue"><b>Bridge.</b> Repeated median repeatedly aggregates pairwise <i>slopes</i> by <i>rank</i>. RAShR keeps the pairwise-geometric philosophy but replaces slope/median aggregation by <b>angular concentration through the shorth</b>.</div></div></div>
+</section>
+
+<!-- ========== RASHR ========== -->
+<section class="slide" data-sec="RAShR" data-title="Roadmap">
+ <div class="kicker">RAShR — the central section</div><h2>Roadmap</h2>
+ <div class="pipeline">
+  <span class="step">points</span><span class="arr">→</span><span class="step">standardize</span><span class="arr">→</span><span class="step">chords</span><span class="arr">→</span><span class="step">directions φ</span><span class="arr">→</span><span class="step">projective angles</span><span class="arr">→</span>
+  <span class="step hl">angular shorth</span><span class="arr">→</span><span class="step hl">local directions θᵢ, wᵢ</span><span class="arr">→</span><span class="step hl">repeated shorth θ̂</span><span class="arr">→</span><span class="step">slope β̂</span><span class="arr">→</span><span class="step">intercept α̂</span><span class="arr">→</span><span class="step">line</span>
+ </div>
+ <div class="grid3">
+  <div class="card"><h3>1 · Put axes on comparable scales</h3><p>Angles depend on units, so standardize robustly first.</p></div>
+  <div class="card"><h3>2 · Dominant direction per anchor</h3><p>Each observation looks at all its chords and finds where half of them concentrate.</p></div>
+  <div class="card"><h3>3 · Combine local directions</h3><p>The same concentration operation, applied again across anchors.</p></div>
+ </div>
+</section>
+
+<section class="slide" data-sec="RAShR" data-title="1. Robust standardization">
+ <div class="kicker">Step 1</div><h2>Angles depend on units</h2>
+ <div class="cols c32"><div><img class="fig" src="{{IMG:fig6_standardization}}" alt="standardization"></div>
+ <div><p>Changing $x$ from metres to centimetres changes the numerical angle of the <i>same</i> relationship. So standardize first:</p>
+ <div class="eq">$$u_i=\frac{x_i-\operatorname{med}(x)}{s_x},\quad v_i=\frac{y_i-\operatorname{med}(y)}{s_y},\quad s=1.4826\,\mathrm{MAD}$$</div>
+ <p class="small">If a MAD is zero, the standard deviation of that coordinate is used. 1.4826 gives normal-consistent scaling.</p>
+ <p>original data → robust centre (median) → robust scale (MAD) → standardized data.</p></div></div>
+</section>
+
+<section class="slide" data-sec="RAShR" data-title="2. A chord and its direction (interactive)">
+ <div class="kicker">Step 2 · interactive</div><h2>A chord determines a direction</h2>
+ <div class="cols c32"><div><canvas id="cv-chord" width="640" height="420"></canvas><div class="small">Drag the two points.</div></div>
+ <div><div class="eq">$$\phi_{ij}=\operatorname{atan2}(v_j-v_i,\;u_j-u_i)\bmod\pi$$</div>
+ <div class="card soft"><div>horizontal component $\Delta u=$ <span class="read" id="ch-du"></span></div><div>vertical component $\Delta v=$ <span class="read" id="ch-dv"></span></div>
+ <div>direction $\phi_{ij}=$ <span class="read" id="ch-phi"></span></div><div>naive slope $\Delta v/\Delta u=$ <span class="read" id="ch-slope"></span></div></div>
+ <p>Make the chord nearly vertical: the slope ratio explodes, but <b>atan2 stays well behaved</b> — it works with the vector, not the ratio.</p></div></div>
+</section>
+
+<section class="slide" data-sec="RAShR" data-title="3. The projective circle (interactive)">
+ <div class="kicker">Step 3 · interactive</div><h2>A line has no orientation</h2>
+ <div class="cols"><div><canvas id="cv-proj1" width="520" height="320"></canvas>
+  <div class="ctrl"><label>oriented angle $\theta$ <input id="pj-theta" type="range" min="0" max="359" value="20"> <span class="read" id="pj-th-val"></span></label></div>
+  <p id="pj-txt" class="read"></p></div>
+ <div><canvas id="cv-proj2" width="520" height="320"></canvas>
+  <div class="ctrl"><label>$a$ <input id="pj-a" type="range" min="0" max="179" value="8"></label><label>$b$ <input id="pj-b" type="range" min="0" max="179" value="172"></label></div>
+  <div class="eq">$$d_\pi(a,b)=\min\{|a-b|,\;\pi-|a-b|\}$$</div><p id="pj-d" class="read"></p></div></div>
+ <div class="card teal">$20^\circ$ and $200^\circ$ are the <b>same unoriented direction</b>, so directions live on $[0,\pi)$ with $0$ and $\pi$ glued. An ordinary interval cannot represent an arc crossing the seam.</div>
+</section>
+
+<section class="slide" data-sec="RAShR" data-title="4. The angular shorth (interactive)">
+ <div class="kicker">Step 4 · interactive</div><h2>Shortest arc containing half the angles</h2>
+ <div class="cols c32"><div><canvas id="cv-sh" width="560" height="440"></canvas>
+  <div class="ctrl"><label>concentration centre <input id="sh-c" type="range" min="0" max="179" value="176"> <span class="read" id="sh-cv"></span></label>
+  <label>spread <input id="sh-s" type="range" min="2" max="30" value="8"></label><button id="sh-re">resample</button></div></div>
+ <div><div class="eq">$$\mathrm{ASh}_h(A)=\tfrac12\big(a_{(r^\star)}+a_{(r^\star+h-1)}\big)\bmod\pi,\ \ h=\lceil m/2\rceil$$</div>
+  <ol class="small"><li>angles on the projective circle (position = $2\phi$)</li><li>sort</li><li>append a copy shifted by $\pi$</li><li>slide windows of $h$ consecutive angles</li><li>measure widths</li><li>keep the shortest (ties → smallest left endpoint)</li><li>take its midpoint</li></ol>
+  <div class="card soft"><div>ASh <span style="color:var(--teal)">(teal)</span> = <span class="read" id="sh-ash"></span></div><div>width = <span class="read" id="sh-w"></span></div><div>naive median angle <span style="color:var(--orange)">(orange)</span> = <span class="read" id="sh-med"></span></div></div>
+  <p class="small">Median angle = middle-ranked angle. Angular shorth = centre of the strongest concentrated half-sample. Move the centre toward 0°/180° to see the median fail across the seam while the shorth does not.</p></div></div>
+</section>
+
+<section class="slide" data-sec="RAShR" data-title="5. Local directions">
+ <div class="kicker">Step 5</div><h2>The direction an anchor sees</h2>
+ <div class="cols"><div><img class="fig" src="{{IMG:fig2_chords_anchor}}" alt="chords anchor"></div>
+ <div><div class="eq">$$\Phi_i=\{\phi_{ij}:j\ne i\},\quad \theta_i=\mathrm{ASh}(\Phi_i),\quad w_i=w_{\lceil (n-1)/2\rceil}(\Phi_i)$$</div>
+  <p>$\theta_i$ is the <b>dominant direction anchor $i$ sees</b>; $w_i$ is the width of its shortest half-window.</p>
+  <p><b>Small $w_i$</b> → strong directional agreement. <b>Large $w_i$</b> → weak agreement. Repeat for all anchors → $\theta_1,\dots,\theta_n$.</p>
+  <img class="fig" src="{{IMG:fig5_local_directions}}" style="max-width:360px" alt="local directions"></div></div>
+</section>
+
+<section class="slide" data-sec="RAShR" data-title="6. Repeated angular shorth">
+ <div class="kicker">Step 6</div><h2>Do it again, across anchors</h2>
+ <div class="cols"><div><img class="fig" src="{{IMG:fig7_outer_stage}}" alt="outer stage"></div>
+ <div><div class="eq">$$\hat\theta=\mathrm{ASh}\{\theta_1,\dots,\theta_n\}$$</div>
+  <div class="grid3" style="grid-template-columns:1fr 1fr">
+  <div class="card"><h3>Local aggregation</h3><p class="small">inside each anchor's $n-1$ chord directions ($h_L=\lceil (n-1)/2\rceil$)</p></div>
+  <div class="card"><h3>Outer aggregation</h3><p class="small">across the $n$ local directions ($h_O=\lceil n/2\rceil$)</p></div></div>
+  <p>That's why it is <b>Repeated</b> Angular Shorth Regression. The outer width is kept as a diagnostic, together with the $w_i$.</p></div></div>
+</section>
+
+<section class="slide" data-sec="RAShR" data-title="7. Back to the original scale">
+ <div class="kicker">Step 7</div><h2>Direction → slope → intercept → line</h2>
+ <div class="pipeline"><span class="step">standardized direction $\hat\theta$</span><span class="arr">→</span><span class="step">$\tan\hat\theta$ (standardized slope)</span><span class="arr">→</span><span class="step">undo $y$ scale: $\times s_y$</span><span class="arr">→</span><span class="step">undo $x$ scale: $\div s_x$</span><span class="arr">→</span><span class="step hl">$\hat\beta$</span></div>
+ <div class="eq">$$\hat\beta=\frac{s_y}{s_x}\tan\hat\theta\ \ (\hat\theta\in(-\tfrac\pi2,\tfrac\pi2]),\qquad \hat\alpha=\operatorname{med}_i\big(y_i-\hat\beta x_i\big),\qquad \hat y=\hat\alpha+\hat\beta x$$</div>
+ <div class="cols"><div class="card"><h3>Why the median for $\alpha$?</h3><p>Lines with the same slope $\hat\beta$ slide vertically; each observation implies an intercept $y_i-\hat\beta x_i$. The median picks the robust vertical placement.</p></div>
+ <div class="card warn"><h3>Honest caveat</h3><p>The intercept uses <i>all</i> observations. Under heavy contamination (e.g. 38% at $(15,-10)$) the median intercept can be pulled even when $\hat\beta$ is right — the paper's evaluation concerns the <b>slope</b>.</p></div></div>
+</section>
+
+<section class="slide" data-sec="RAShR" data-title="Algorithm & cost">
+ <div class="kicker">Algorithm 1</div><h2>The whole procedure</h2>
+ <div class="pipeline"><span class="step">raw observations</span><span class="arr">↓</span><span class="step">robust standardization</span><span class="arr">↓</span><span class="step">pairwise chord directions</span><span class="arr">↓</span><span class="step">local shortest half-window</span><span class="arr">↓</span><span class="step">local directions</span><span class="arr">↓</span><span class="step">second angular shorth</span><span class="arr">↓</span><span class="step">final direction</span><span class="arr">↓</span><span class="step">original-scale slope</span><span class="arr">↓</span><span class="step">median intercept</span><span class="arr">↓</span><span class="step hl">final line</span></div>
+ <div class="cols"><div class="card soft" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.88rem;line-height:1.5">
+ (u,v) ← robust standardization of (x,y)  [Eq.2]<br>for i = 1..n:<br>&nbsp;&nbsp;Φᵢ ← { atan2(v_j−v_i, u_j−u_i) mod π : j≠i }<br>&nbsp;&nbsp;sort Φᵢ, append copy shifted by π<br>&nbsp;&nbsp;narrowest window with ⌈q(n−1)⌉ angles → θᵢ (midpoint), wᵢ (width)<br>same window search on {θ₁..θₙ} with ⌈qn⌉ → θ̂, w<br>β̂ ← (s_y/s_x)·tan θ̂ ;  α̂ ← med(yᵢ − β̂xᵢ)</div>
+ <div><div class="card"><b>Cost.</b> $n$ anchors × sort of $n-1$ angles: $O(n^2\log n)$ time, $O(n)$ extra memory if anchors are processed one at a time — same order as a direct repeated median, and cheaper than exhaustive elemental-subset search for LMS/LTS, which is $O(n^3)$ in the paper's implementations.</div><p class="small">Deterministic: ties go to the smallest left endpoint; no random sampling.</p></div></div>
+</section>
+
+<!-- ========== THEORY ========== -->
+<section class="slide" data-sec="Theory" data-title="Prop 1: exact fit">
+ <div class="kicker">Proposition 1</div><h2>Exact fit</h2>
+ <div class="cols"><div><img class="fig" src="{{IMG:fig13_exact_fit}}" alt="exact fit"></div>
+ <div><p><b>Statement.</b> If $y_i=\alpha^\star+\beta^\star x_i$ with distinct $x_i$, then $(\hat\alpha,\hat\beta)=(\alpha^\star,\beta^\star)$.</p>
+  <p><b>Geometry.</b> Every chord has the same direction $\theta^\star$ ⇒ all local and outer shorth widths are zero ⇒ $\hat\theta=\theta^\star$ ⇒ exact slope and intercept.</p>
+  <div class="card teal"><b>Corollary 1 (exact fit under contamination).</b> If the majority lies exactly on a line, no contaminated point is on it, and $|B|<\lceil (n-1)/2\rceil$, then the line is recovered <i>regardless of where</i> the contamination is. A group smaller than the half-sample size cannot form a competing zero-width window. (Shared with LMS and the repeated median — it is not unique to RAShR.)</div></div></div>
+</section>
+
+<section class="slide" data-sec="Theory" data-title="Prop 2: equivariance">
+ <div class="kicker">Proposition 2</div><h2>Translation and positive-scale equivariance</h2>
+ <div class="cols"><div><img class="fig" src="{{IMG:fig14_equivariance}}" alt="equivariance"></div>
+ <div><div class="eq">$$x'=a_x+b_xx,\ y'=a_y+b_yy,\ b_x,b_y>0\ \Rightarrow\ \hat\beta'=\frac{b_y}{b_x}\hat\beta$$</div>
+ <p>Robust standardization removes translations and positive rescalings, so the same chords and the same shorths are selected; only the back-transformation changes the slope.</p>
+ <div class="card warn"><b>Limitation.</b> RAShR is <b>not fully affine equivariant</b>: $y\to y+\gamma x$ also changes the robust $y$-scale $s_y$, so it is not a simple rotation of the standardized data (right panel).</div></div></div>
+</section>
+
+<section class="slide" data-sec="Theory" data-title="Lemma 1: separation (interactive)">
+ <div class="kicker">Separation lemma · interactive</div><h2>A tight group beats a separated group</h2>
+ <div class="cols c32"><div><canvas id="cv-sep" width="560" height="440"></canvas>
+  <div class="ctrl"><label>move contaminated angles toward the majority group <input id="sp-d" type="range" min="0" max="100" value="0"></label></div></div>
+ <div><p><b>Lemma 1.</b> Let $A$ have a unique shortest $h$-arc, and suppose every arc with $\ge h$ elements of $A\cup B$ that contains a $B$ element is strictly wider. Then $\mathrm{ASh}_h(A\cup B)=\mathrm{ASh}_h(A)$.</p>
+ <div class="card soft"><div>ASh of majority only: <span class="read" id="sp-a"></span></div><div>ASh of everything: <span class="read" id="sp-ab"></span></div><div id="sp-v" class="read"></div></div>
+ <p class="small">While the contaminated angles stay separated, the shortest half-arc ignores them <b>exactly</b>. Once they enter the majority arc (or make a competing arc narrower), the estimate moves.</p></div></div>
+</section>
+
+<section class="slide" data-sec="Theory" data-title="Local & outer separation">
+ <div class="kicker">Conditions (L) and (O)</div><h2>Two levels of separation</h2>
+ <div class="grid3" style="grid-template-columns:1fr 1fr">
+  <div class="card blue"><h3>(L) Local separation</h3><p>At every majority anchor, the shortest half-interval formed by <b>majority–majority</b> chords is narrower than any competing interval of the same size involving a contaminated chord. ⇒ $\theta_i$ at majority anchors depends only on majority chords.</p></div>
+  <div class="card blue"><h3>(O) Outer separation</h3><p>Among the local directions, the concentrated <b>majority-anchor</b> directions form a narrower half-sample interval than any competing interval involving contaminated-anchor directions.</p></div></div>
+ <div class="cols" style="margin-top:14px"><img class="fig" src="{{IMG:fig5_local_directions}}" alt=""><div class="card"><p><b>Size condition.</b> $|G|>n/2$ ensures $|G|-1\ge h_L$ and $|G|\ge h_O$: both stages can be formed from majority observations alone.</p><p class="small">Majority anchors (blue) form the large concentrated group; contaminated anchors (red) form a smaller group at another direction — that is (L)+(O) in action.</p></div></div>
+</section>
+
+<section class="slide" data-sec="Theory" data-title="Theorem 1 — zero influence (interactive)">
+ <div class="kicker">Theorem 1 · live demonstration</div><h2>Zero influence of separated contamination</h2>
+ <div class="cols c32"><div><canvas id="cv-live" width="640" height="460"></canvas>
+  <div class="ctrl"><label>contamination <input id="lv-f" type="range" min="0" max="48" value="36"> <span class="read" id="lv-fv"></span></label>
+  <label>cluster position $c_x$ <input id="lv-cx" type="range" min="6" max="40" value="15"> <span class="read" id="lv-cxv"></span></label>
+  <label>spread <input id="lv-sp" type="range" min="5" max="300" value="30"> <span class="read" id="lv-spv"></span></label></div></div>
+ <div><div class="eq">$$\hat\theta=\mathrm{ASh}_{h_O}\{\mathrm{ASh}_{h_L}(\Phi_i^G):i\in G\}$$</div>
+ <div class="card soft"><table><tr><th class="l">method</th><th>slope</th></tr>
+  <tr><td class="l" style="color:var(--rashr)"><b>RAShR</b></td><td class="read" id="lv-r"></td></tr><tr><td class="l" style="color:var(--LMS)">LMS</td><td class="read" id="lv-l"></td></tr><tr><td class="l" style="color:var(--OLS)">OLS</td><td class="read" id="lv-o"></td></tr></table>
+  <div class="small">true slope 2. Majority sample fixed; only the cluster changes.</div></div>
+ <canvas id="cv-live2" width="330" height="200" style="margin-top:8px"></canvas>
+ <p class="small">Slide $c_x$: once the cluster is far enough, RAShR's slope stays <b>exactly constant</b> (the paper reports 2.058 for its sample). Make the spread large, or put the cluster on the line's extension (small $c_x$), and the separation condition fails.</p></div></div>
+ <div class="card warn"><b>Caveat (paper).</b> The statement holds <i>once the standardization scales are fixed</i>: contamination can still affect the medians/MADs used in Eq. (2).</div>
+</section>
+
+<section class="slide" data-sec="Theory" data-title="Prop 3: LMS attraction">
+ <div class="kicker">Proposition 3</div><h2>Why coherent contamination can attract LMS</h2>
+ <div class="cols"><div class="card"><p>Model: $(X,Y)\sim(1-\varepsilon)P_G+\varepsilon\,\delta_c$, $P_G:Y=\alpha^\star+\beta^\star X+e$, $e\sim N(0,\sigma^2)$, point mass at distance $\Delta>0$ from the majority line.</p>
+ <p><b>Statement.</b> There is $\varepsilon_0<\tfrac12$ such that for every $\varepsilon\in(\varepsilon_0,\tfrac12)$ every population LMS solution satisfies $|c_y-\ell(c_x)|\le W(\ell)$ with $W(\ell)\to0$ as $\varepsilon\uparrow\frac12$. The majority line is <b>not</b> an LMS solution.</p></div>
+ <div><img class="fig" src="{{IMG:fig10_lms_attraction}}" alt=""><div class="card warn" style="margin-top:8px"><b>Scope.</b> Proved for <i>population LMS only</i>. For LTS and MM the paper provides empirical evidence (Section 5), not a theorem. Also: the result is asymptotic in $\varepsilon\uparrow\tfrac12$.</div></div></div>
+ <p class="small"><b>Proof idea.</b> A strip excluding $c$ and holding half the mass needs half-width $\ge w_{1/4}>0$ (Anderson's inequality); a strip through $c$ already holds mass $\varepsilon$ and needs only $\tfrac12-\varepsilon\to0$ more from the majority.</p>
+</section>
+
+<section class="slide" data-sec="Theory" data-title="Remark: 'all chords' is too strong">
+ <div class="kicker">Remark 1</div><h2>Why we need a concentrated <i>half</i>, not all chords</h2>
+ <div class="cols"><div><img class="fig" src="{{IMG:fig11_all_chords_remark}}" alt=""></div>
+ <div><p>A clean-looking sufficient condition: every majority–majority chord lies within $\delta<\pi/8$ of $\theta^\star$, giving $d_\pi(\hat\theta,\theta^\star)\le4\delta$.</p>
+ <p>It is valid mathematics but useless for noisy data: two points with nearly equal $x$ and a little vertical noise give a chord with an almost <b>arbitrary</b> direction (red chords on the left).</p>
+ <div class="card teal">RAShR needs the <b>half-sample</b> to concentrate — which is what the shorth detects — not every chord.</div></div></div>
+</section>
+
+<!-- ========== SIMULATION ========== -->
+<section class="slide" data-sec="Simulation" data-title="Design">
+ <div class="kicker">Section 5</div><h2>Simulation design</h2>
+ <div class="cols"><div><div class="card"><p><b>Base model</b> $n=100$, $x\sim U[-5,5]$, $y=1+2x+e$, $e\sim N(0,1)$. A fraction $f$ is replaced by:</p>
+  <ol><li><b>compact leverage cluster</b> at $(15,-10)$, Gaussian spread 0.3</li><li><b>competing line</b> $y=5-1.25x+e_c$, $e_c\sim N(0,0.5^2)$, same $x$-range</li><li><b>funnel</b>: heteroscedastic majority (sd $0.2+0.6|x|$) + competing line (sd 0.3)</li></ol></div></div>
+ <div><div class="card"><p><b>Metrics.</b> Accuracy $|\hat\beta-2|$; failure $\Pr(|\hat\beta-2|>0.5)$; 60 replications per point in the paper.</p>
+  <p class="small">LTS: ten best elemental fits + 20 concentration steps. MM: LTS start, MAD scale, Tukey bisquare. RANSAC: two-point samples, MAD-based threshold, 1000 trials (deliberately many).</p></div>
+  <div class="card warn" style="margin-top:10px"><b>Reproducibility note.</b> The curves on the next slides come from our re-implementation of all five estimators (deterministic seeds). Some tuning constants (notably RANSAC's threshold) are not fully specified in the paper, so we compare <i>patterns</i>, and list the paper's own reported numbers separately (◇).</div></div></div>
+</section>
+
+<section class="slide" data-sec="Simulation" data-title="Limitations first">
+ <div class="kicker">Limitations</div><h2>RAShR is <u>not</u> universally better</h2>
+ <div class="card"><table><tr><th class="l">Median |β̂−2|</th><th>RAShR</th><th>MM</th><th>RANSAC</th><th class="l">winner (paper)</th></tr>
+ <tr><td class="l">Clean data</td><td>0.033</td><td class="best">0.024</td><td class="best">0.022</td><td class="l">RANSAC / MM</td></tr>
+ <tr><td class="l">20% vertical contamination</td><td>0.040</td><td class="best">0.027</td><td>0.037</td><td class="l">MM</td></tr>
+ <tr><td class="l">10% bad leverage</td><td>0.041</td><td class="best">0.020</td><td>0.021</td><td class="l">MM / RANSAC</td></tr></table>
+ <p class="small">Source: paper, Section 5 “Standard settings”. A similar pattern holds for a 20% competing line and Cauchy errors.</p></div>
+ <div class="card blue" style="margin-top:12px"><b>Take-away.</b> At low contamination or in standard settings, MM-regression is generally the more efficient choice. RAShR's advantage appears only when the contaminating group is both <b>large and geometrically coherent</b>.</div>
+ <div class="card soft" style="margin-top:12px"><div class="small">Our re-implementation (100 reps) — median |β̂−2|:</div><div id="std-table"></div></div>
+</section>
+
+<section class="slide" data-sec="Simulation" data-title="Failure curves (interactive)">
+ <div class="kicker">Main experiment · interactive</div><h2>Failure rate as coherent contamination grows</h2>
+ <div class="ctrl"><label>scenario <select id="fc-sc"><option value="compact">(a) compact leverage cluster</option><option value="line">(b) competing line</option><option value="funnel">(c) funnel majority + line</option></select></label>
+  <label><input type="checkbox" id="fc-paper" checked> show paper's reported values (◇)</label><label>contamination <input id="fc-f" type="range" min="0" max="9" value="5"> <span class="read" id="fc-fv"></span></label></div>
+ <div class="cols c32"><div><canvas id="cv-fc" width="720" height="400"></canvas><div class="ctrl" id="fc-leg"></div></div>
+  <div><div class="card"><table id="fc-tab"></table></div><p class="small">Below ≈30% the high-breakdown methods behave alike; between ≈35% and 46% they separate. Compact cluster at 46%: <b>every</b> method fails.</p></div></div>
+</section>
+
+<section class="slide" data-sec="Simulation" data-title="Reported values (Fig. 2)">
+ <div class="kicker">Paper's Figure 2 — reported numbers</div><h2>What the paper reports</h2>
+ <div class="grid3">
+  <div class="card"><h3>(a) Compact leverage</h3><table><tr><th class="l"></th><th>36%</th><th>40%</th></tr><tr><td class="l">RAShR</td><td>0%</td><td>0%</td></tr><tr><td class="l">LMS</td><td>2%</td><td>58%</td></tr><tr><td class="l">LTS / MM</td><td>23%</td><td>100%</td></tr><tr><td class="l">RANSAC</td><td>50%</td><td>77%</td></tr></table><p class="small">44%: RAShR succeeds in 40% of samples; every competitor fails in ≥97%. 46%: all methods fail.</p></div>
+  <div class="card"><h3>(b) Competing line @46%</h3><table><tr><td class="l">RAShR</td><td>0%</td></tr><tr><td class="l">LMS</td><td>60%</td></tr><tr><td class="l">LTS / MM</td><td>93%</td></tr><tr><td class="l">RANSAC</td><td>12%</td></tr></table><p class="small">RAShR: no failures through 46%. RANSAC is a strong competitor here.</p></div>
+  <div class="card"><h3>(c) Funnel + line</h3><table><tr><th class="l"></th><th>40%</th><th>44%</th></tr><tr><td class="l">RAShR</td><td>0%</td><td>3%</td></tr><tr><td class="l">LMS</td><td>25%</td><td>83%</td></tr><tr><td class="l">LTS</td><td>62%</td><td>100%</td></tr><tr><td class="l">MM</td><td>60%</td><td>98%</td></tr><tr><td class="l">RANSAC</td><td>5%</td><td>40%</td></tr></table><p class="small">RAShR at 46%: 8%.</p></div></div>
+ <div class="card warn" style="margin-top:12px">The advantage is <b>not a general “near-50%” guarantee</b>: it is a finite regime (≈35–46%) in which RAShR can stay near the majority line after several established methods have begun to follow the competing structure.</div>
+</section>
+
+<section class="slide" data-sec="Simulation" data-title="Fig. 3 geometry (interactive)">
+ <div class="kicker">Paper's Figure 3 · interactive</div><h2>Why it happens, and when it stops</h2>
+ <div class="cols"><div><img class="fig" src="{{IMG:fig5_local_directions}}" alt=""><p class="small">Left: majority anchors give a large group of local directions near the true slope; cluster anchors form a smaller group elsewhere. The outer shorth selects the majority group.</p></div>
+ <div><canvas id="cv-mv" width="560" height="340"></canvas><div class="ctrl"><label>cluster position $c_x$ <input id="mv-c" type="range" min="0" max="64" value="20"> <span class="read" id="mv-cv"></span></label></div>
+  <div id="mv-read" class="small read"></div><p class="small">Fixed 36-point cluster moved horizontally, majority fixed. Paper: RAShR's slope becomes exactly constant (2.058 on the paper's sample) once the cluster is sufficiently separated.</p></div></div>
+</section>
+
+<section class="slide" data-sec="Simulation" data-title="When the advantage disappears">
+ <div class="kicker">Boundaries</div><h2>Direction and compactness</h2>
+ <div class="cols"><div><img class="fig" src="{{IMG:fig15_directions}}" alt=""></div>
+ <div><div class="card red"><p>A 38% cluster was placed in twelve directions at two distances. RAShR had no failures in <b>ten of twelve</b>; the two difficult directions are ≈<b>30° and −150°</b>, where the cluster lies close to the extension of the majority line. Reported at distance 30: failure 78% (30°) and 75% (−150°).</p>
+ <p><b>On the projective circle, 30° and −150° are the same unoriented direction</b> ($-150^\circ+180^\circ=30^\circ$): chords to the cluster and majority–majority chords overlap in angle, so the separation is lost.</p></div></div></div>
+ <div class="cols" style="margin-top:12px"><div><img class="fig" src="{{IMG:fig16_spread}}" alt=""></div>
+ <div class="card"><p><b>Compactness.</b> Spread 0.05: RAShR no failures; LMS 25%, LTS and MM ≈98% (paper). Spread 1 or 3: the cluster is no longer a compact coherent group, and LMS, LTS, MM and RAShR all fail in at most 2% of samples. The advantage is specific to <b>compact coherent contamination</b>, not arbitrary outliers. Same compact-cluster behaviour for $n\in\{40,60,200,400\}$.</p><p class="small">Bars: this project's re-implementation.</p></div></div>
+</section>
+
+<section class="slide" data-sec="Wrap-up" data-title="Summary">
+ <div class="kicker">Summary</div><h2>When is RAShR useful?</h2>
+ <div class="pipeline"><span class="step">robust regression problem</span><span class="arr">→</span><span class="step">residual methods can follow coherent contamination</span><span class="arr">→</span><span class="step">pairwise chord directions</span><span class="arr">→</span><span class="step">projective angles</span><span class="arr">→</span><span class="step">shorth</span><span class="arr">→</span><span class="step hl">repeated angular shorth</span><span class="arr">→</span><span class="step hl">robust direction → line</span></div>
+ <div class="grid3">
+  <div class="card teal"><h3>Use it when</h3><ul><li>≈35–46% of the data form a compact, coherent structure</li><li>the structure is angularly separated from the majority line</li><li>you want a deterministic estimator</li></ul></div>
+  <div class="card warn"><h3>Prefer MM / RANSAC when</h3><ul><li>data are clean or lightly contaminated</li><li>contamination is arbitrary or diffuse</li><li>efficiency matters most</li></ul></div>
+  <div class="card red"><h3>Known limits</h3><ul><li>cluster on the line's extension (≈30°, −150°)</li><li>compact cluster at 46%: all methods fail</li><li>not fully affine equivariant; scales still use all data</li></ul></div></div>
+ <p class="small" style="margin-top:12px">Companion materials: Manim video, PowerPoint, Beamer, notebooks, Streamlit lab (<code>streamlit run app/app.py</code>).</p>
+</section>
+
+</div>
+<div id="bar"><button id="b-menu">☰</button><button id="b-prev">←</button><button id="b-next">→</button><div id="prog"><i></i></div><span id="b-count" class="small" style="color:#9FB7DE"></span><button id="b-full" title="fullscreen">⛶</button></div>
+
+<script>
+const DATA = {{DATA}};
+const COL = {RAShR:'#1F6FEB',LMS:'#E4572E',LTS:'#17A398',MM:'#F2A541',RANSAC:'#7B4FB5',OLS:'#8A94A6',maj:'#3E7CE0',bad:'#D1495B',ink:'#10213A',teal:'#0FA3B1',orange:'#F28F3B'};
+const PI = Math.PI, DEG = 180/PI;
+
+/* ============ numerics (same conventions as rashr_core.py) ============ */
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gauss(rnd){let u=0,v=0;while(!u)u=rnd();v=rnd();return Math.sqrt(-2*Math.log(u))*Math.cos(2*PI*v)}
+const med = a => {const s=[...a].sort((p,q)=>p-q),n=s.length;return n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2};
+function rscale(z){const m=med(z);let s=1.4826*med(z.map(v=>Math.abs(v-m)));if(s===0){const mu=z.reduce((a,b)=>a+b,0)/z.length;s=Math.sqrt(z.reduce((a,b)=>a+(b-mu)**2,0)/z.length)}return s}
+const mod = (a,m) => ((a%m)+m)%m;
+function ash(angles,h){ // angular shorth; ties -> smallest left endpoint (first minimum)
+  const a=angles.map(v=>mod(v,PI)).sort((p,q)=>p-q),m=a.length; if(h==null)h=Math.ceil(m/2);
+  const ext=a.concat(a.map(v=>v+PI)); let best=Infinity,r=0;
+  for(let k=0;k<m;k++){const w=ext[k+h-1]-ext[k]; if(w<best){best=w;r=k}}
+  return {mid:mod(0.5*(ext[r]+ext[r+h-1]),PI),width:best,sorted:a,ext,r,h};
+}
+function rashr(x,y){
+  const n=x.length,mx=med(x),my=med(y),sx=rscale(x),sy=rscale(y);
+  const u=x.map(v=>(v-mx)/sx),v=y.map(w=>(w-my)/sy),hL=Math.ceil((n-1)/2),hO=Math.ceil(n/2);
+  const theta=new Array(n),w=new Array(n);
+  for(let i=0;i<n;i++){const ph=[];for(let j=0;j<n;j++)if(j!==i)ph.push(mod(Math.atan2(v[j]-v[i],u[j]-u[i]),PI));const r=ash(ph,hL);theta[i]=r.mid;w[i]=r.width}
+  const o=ash(theta,hO); const th=o.mid<=PI/2?o.mid:o.mid-PI; const beta=sy/sx*Math.tan(th);
+  const alpha=med(y.map((yy,i)=>yy-beta*x[i])); return {alpha,beta,theta,w,thetaHat:o.mid,wOut:o.width,sx,sy};
+}
+function ols(x,y){const n=x.length,mx=x.reduce((a,b)=>a+b)/n,my=y.reduce((a,b)=>a+b)/n;let sxy=0,sxx=0;for(let i=0;i<n;i++){sxy+=(x[i]-mx)*(y[i]-my);sxx+=(x[i]-mx)**2}const b=sxy/sxx;return{alpha:my-b*mx,beta:b}}
+function lms(x,y){const n=x.length,h=Math.floor(n/2);let best=Infinity,ba=0,bb=0;const r2=new Float64Array(n);
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){const dx=x[j]-x[i];if(Math.abs(dx)<1e-12)continue;const b=(y[j]-y[i])/dx,a=y[i]-b*x[i];
+    for(let k=0;k<n;k++){const r=y[k]-a-b*x[k];r2[k]=r*r}
+    const c=quickselect(r2.slice(),h); if(c<best){best=c;ba=a;bb=b}} return{alpha:ba,beta:bb}}
+function quickselect(a,k){let l=0,r=a.length-1;while(l<r){const p=a[(l+r)>>1];let i=l,j=r;while(i<=j){while(a[i]<p)i++;while(a[j]>p)j--;if(i<=j){const t=a[i];a[i]=a[j];a[j]=t;i++;j--}}if(k<=j)r=j;else if(k>=i)l=i;else break}return a[k]}
+
+/* ============ canvas helpers ============ */
+function ctx2(id){const c=document.getElementById(id);return [c,c.getContext('2d')]}
+function circleBase(g,cx,cy,R){g.strokeStyle=COL.ink;g.lineWidth=1.5;g.beginPath();g.arc(cx,cy,R,0,2*PI);g.stroke();g.fillStyle=COL.ink;g.font='11px sans-serif';g.textAlign='center';g.textBaseline='middle';
+  for(let d=0;d<180;d+=15){const a=-(2*d/DEG);g.beginPath();g.arc(cx+R*Math.cos(a),cy+R*Math.sin(a),2.5,0,2*PI);g.fill();g.fillText(d+'°',cx+(R+16)*Math.cos(a),cy+(R+16)*Math.sin(a))}}
+const cpos=(phi,cx,cy,R)=>{const a=-(2*phi);return[cx+R*Math.cos(a),cy+R*Math.sin(a)]};
+
+/* ============ demo: chord ============ */
+(function(){const [c,g]=ctx2('cv-chord');let P=[[-1.5,-0.8],[1.2,1.6]],drag=-1;const W=c.width,H=c.height,S=60,ox=W/2,oy=H/2;
+ const tx=p=>[ox+p[0]*S,oy-p[1]*S];
+ function draw(){g.clearRect(0,0,W,H);g.strokeStyle='#E3E8F0';g.lineWidth=1;for(let i=-5;i<=5;i++){g.beginPath();g.moveTo(ox+i*S,0);g.lineTo(ox+i*S,H);g.stroke();g.beginPath();g.moveTo(0,oy-i*S);g.lineTo(W,oy-i*S);g.stroke()}
+  g.strokeStyle=COL.ink;g.beginPath();g.moveTo(0,oy);g.lineTo(W,oy);g.moveTo(ox,0);g.lineTo(ox,H);g.stroke();
+  const a=tx(P[0]),b=tx(P[1]);
+  g.setLineDash([5,4]);g.strokeStyle=COL.orange;g.beginPath();g.moveTo(a[0],a[1]);g.lineTo(b[0],a[1]);g.stroke();g.strokeStyle=COL.teal;g.beginPath();g.moveTo(b[0],a[1]);g.lineTo(b[0],b[1]);g.stroke();g.setLineDash([]);
+  g.strokeStyle=COL.rashr||COL.RAShR;g.lineWidth=3;g.beginPath();g.moveTo(a[0]-(b[0]-a[0])*3,a[1]-(b[1]-a[1])*3);g.lineTo(b[0]+(b[0]-a[0])*3,b[1]+(b[1]-a[1])*3);g.stroke();g.lineWidth=1;
+  g.fillStyle=COL.bad;[a,b].forEach((p,i)=>{g.beginPath();g.arc(p[0],p[1],9,0,2*PI);g.fill();g.fillStyle='#fff';g.font='bold 11px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(i?'j':'i',p[0],p[1]);g.fillStyle=COL.bad});
+  const du=P[1][0]-P[0][0],dv=P[1][1]-P[0][1],phi=mod(Math.atan2(dv,du),PI);
+  g.strokeStyle=COL.ink;g.beginPath();g.arc(a[0],a[1],34,0,-Math.atan2(dv,du),Math.atan2(dv,du)>0);g.stroke();
+  document.getElementById('ch-du').textContent=du.toFixed(2);document.getElementById('ch-dv').textContent=dv.toFixed(2);
+  document.getElementById('ch-phi').textContent=(phi*DEG).toFixed(1)+'°';document.getElementById('ch-slope').textContent=Math.abs(du)<1e-9?'∞':(dv/du).toFixed(2)}
+ const pos=e=>{const r=c.getBoundingClientRect();return[(e.clientX-r.left)*W/r.width,(e.clientY-r.top)*H/r.height]};
+ c.addEventListener('pointerdown',e=>{const p=pos(e);let d=[0,1].map(i=>{const q=tx(P[i]);return Math.hypot(q[0]-p[0],q[1]-p[1])});drag=d[0]<d[1]?0:1;if(Math.min(...d)>30)drag=-1;c.setPointerCapture(e.pointerId)});
+ c.addEventListener('pointermove',e=>{if(drag<0)return;const p=pos(e);P[drag]=[(p[0]-ox)/S,-(p[1]-oy)/S];draw()});c.addEventListener('pointerup',()=>drag=-1);draw();})();
+
+/* ============ demo: projective circle ============ */
+(function(){const [c1,g1]=ctx2('cv-proj1'),[c2,g2]=ctx2('cv-proj2');
+ function d1(){const th=+document.getElementById('pj-theta').value,phi=mod(th,180);document.getElementById('pj-th-val').textContent=th+'°';
+  g1.clearRect(0,0,520,320);const lx=130,ly=160;g1.strokeStyle='#E3E8F0';g1.beginPath();g1.moveTo(lx-110,ly);g1.lineTo(lx+110,ly);g1.moveTo(lx,ly-110);g1.lineTo(lx,ly+110);g1.stroke();
+  const a=th/DEG;g1.strokeStyle=COL.RAShR;g1.lineWidth=3;g1.beginPath();g1.moveTo(lx-100*Math.cos(a),ly+100*Math.sin(a));g1.lineTo(lx+100*Math.cos(a),ly-100*Math.sin(a));g1.stroke();
+  g1.fillStyle=COL.bad;g1.beginPath();g1.arc(lx+100*Math.cos(a),ly-100*Math.sin(a),7,0,2*PI);g1.fill();g1.lineWidth=1;
+  const cx=390,cy=160,R=100;circleBase(g1,cx,cy,R);const p=cpos(phi/DEG,cx,cy,R);g1.fillStyle=COL.RAShR;g1.beginPath();g1.arc(p[0],p[1],8,0,2*PI);g1.fill();g1.fillStyle=COL.ink;g1.font='12px sans-serif';g1.fillText('position = 2φ',cx,cy);
+  document.getElementById('pj-txt').textContent=`θ = ${th}° and θ ± 180° give the same line: φ = θ mod 180° = ${phi}°`}
+ function d2(){const a=+document.getElementById('pj-a').value,b=+document.getElementById('pj-b').value;g2.clearRect(0,0,520,320);const cx=260,cy=160,R=110;circleBase(g2,cx,cy,R);
+  const d=Math.abs(a-b),dp=Math.min(d,180-d);const pa=cpos(a/DEG,cx,cy,R),pb=cpos(b/DEG,cx,cy,R);
+  // short arc between points on the doubled circle
+  const lo=Math.min(a,b),hi=Math.max(a,b);const wraps=(hi-lo)>90;g2.strokeStyle=COL.teal;g2.lineWidth=5;g2.beginPath();
+  let s=-(2*(wraps?hi:lo)/DEG),e=-(2*(wraps?lo+180:hi)/DEG);g2.arc(cx,cy,R-12,s,e,true);g2.stroke();g2.lineWidth=1;
+  [[pa,COL.RAShR,'a'],[pb,COL.bad,'b']].forEach(([p,c,l])=>{g2.fillStyle=c;g2.beginPath();g2.arc(p[0],p[1],8,0,2*PI);g2.fill();g2.fillStyle='#fff';g2.font='bold 11px sans-serif';g2.fillText(l,p[0],p[1])});
+  document.getElementById('pj-d').textContent=`|a−b| = ${d}°   but   d_π(a,b) = ${dp}°`}
+ ['pj-theta'].forEach(i=>document.getElementById(i).addEventListener('input',d1));['pj-a','pj-b'].forEach(i=>document.getElementById(i).addEventListener('input',d2));d1();d2();})();
+
+/* ============ demo: angular shorth ============ */
+(function(){const [c,g]=ctx2('cv-sh');let seed=7;const m=15;let Z=[],U=[];
+ function resample(){const r=mulberry(seed++);Z=[];U=[];for(let i=0;i<m;i++){Z.push(gauss(r));U.push(r()*180)}}
+ function draw(){const cen=+document.getElementById('sh-c').value,sp=+document.getElementById('sh-s').value;document.getElementById('sh-cv').textContent=cen+'°';
+  const k=Math.round(m*0.6),A=[];for(let i=0;i<m;i++)A.push(i<k?mod(cen+Z[i]*sp/2,180):U[i]);const rad=A.map(v=>v/DEG);const o=ash(rad);
+  g.clearRect(0,0,560,440);const cx=280,cy=210,R=150;circleBase(g,cx,cy,R);
+  const lo=o.ext[o.r],hi=o.ext[o.r+o.h-1];g.strokeStyle=COL.teal;g.lineWidth=12;g.globalAlpha=.35;g.beginPath();g.arc(cx,cy,R,-(2*lo),-(2*hi),true);g.stroke();g.globalAlpha=1;g.lineWidth=1;
+  rad.forEach(a=>{const p=cpos(a,cx,cy,R);g.fillStyle=COL.maj;g.beginPath();g.arc(p[0],p[1],5,0,2*PI);g.fill()});
+  const pm=cpos(o.mid,cx,cy,R+0);g.fillStyle=COL.teal;g.beginPath();g.arc(pm[0],pm[1],9,0,2*PI);g.fill();
+  const md=med(rad);const pd=cpos(md,cx,cy,R-26);g.fillStyle=COL.orange;g.beginPath();g.moveTo(pd[0],pd[1]-9);g.lineTo(pd[0]+8,pd[1]+7);g.lineTo(pd[0]-8,pd[1]+7);g.fill();
+  g.fillStyle=COL.ink;g.font='12px sans-serif';g.textAlign='center';g.fillText(`${m} angles · h = ${o.h}`,cx,cy-6);g.fillText('(position = 2φ)',cx,cy+10);
+  document.getElementById('sh-ash').textContent=(o.mid*DEG).toFixed(1)+'°';document.getElementById('sh-w').textContent=(o.width*DEG).toFixed(1)+'°';document.getElementById('sh-med').textContent=(md*DEG).toFixed(1)+'°'}
+ ['sh-c','sh-s'].forEach(i=>document.getElementById(i).addEventListener('input',draw));document.getElementById('sh-re').onclick=()=>{resample();draw()};resample();draw();})();
+
+/* ============ demo: separation lemma ============ */
+(function(){const [c,g]=ctx2('cv-sep');const r=mulberry(5);const A=[],B=[];for(let i=0;i<10;i++)A.push(mod(70+gauss(r)*3,180)/DEG);for(let i=0;i<8;i++)B.push(mod(145+gauss(r)*3,180)/DEG);
+ function draw(){const t=+document.getElementById('sp-d').value/100;const B2=B.map(b=>b+(t*( (70/DEG)-b)));const oA=ash(A,A.length>9?9:9),oAB=ash(A.concat(B2),9);
+  g.clearRect(0,0,560,440);const cx=280,cy=220,R=160;circleBase(g,cx,cy,R);
+  [[A,COL.maj],[B2,COL.bad]].forEach(([arr,col])=>arr.forEach(a=>{const p=cpos(a,cx,cy,R);g.fillStyle=col;g.beginPath();g.arc(p[0],p[1],6,0,2*PI);g.fill()}));
+  const lo=oAB.ext[oAB.r],hi=oAB.ext[oAB.r+oAB.h-1];g.strokeStyle=COL.teal;g.lineWidth=12;g.globalAlpha=.4;g.beginPath();g.arc(cx,cy,R,-(2*lo),-(2*hi),true);g.stroke();g.globalAlpha=1;g.lineWidth=1;
+  g.fillStyle=COL.ink;g.font='12px sans-serif';g.textAlign='center';g.fillText('majority angles (blue, 10)  ·  contaminated (red, 8)',cx,cy-6);g.fillText('h = 9 of 18',cx,cy+12);
+  document.getElementById('sp-a').textContent=(oA.mid*DEG).toFixed(2)+'°';document.getElementById('sp-ab').textContent=(oAB.mid*DEG).toFixed(2)+'°';
+  const same=Math.abs(oA.mid-oAB.mid)<1e-9;const v=document.getElementById('sp-v');v.textContent=same?'✔ identical: contamination has zero influence':'✘ shifted: separation condition violated';v.style.color=same?COL.teal:COL.bad}
+ document.getElementById('sp-d').addEventListener('input',draw);draw();})();
+
+/* ============ demo: live theorem 1 ============ */
+(function(){const [c,g]=ctx2('cv-live'),[c2,g2]=ctx2('cv-live2');const r=mulberry(11);const MX=[],MY=[],ZX=[],ZY=[];
+ for(let i=0;i<100;i++){const x=-5+10*r();MX.push(x);MY.push(1+2*x+gauss(r))}for(let i=0;i<100;i++){ZX.push(gauss(r));ZY.push(gauss(r))}
+ let timer=null;
+ function run(){const f=+document.getElementById('lv-f').value/100,cx=+document.getElementById('lv-cx').value,sp=+document.getElementById('lv-sp').value/100;
+  document.getElementById('lv-fv').textContent=Math.round(f*100)+'%';document.getElementById('lv-cxv').textContent=cx;document.getElementById('lv-spv').textContent=sp.toFixed(2);
+  const k=Math.round(f*100),x=MX.slice(0,100-k),y=MY.slice(0,100-k),bad=[];for(let i=0;i<100-k;i++)bad.push(false);
+  for(let i=0;i<k;i++){x.push(cx+sp*ZX[i]);y.push(-10+sp*ZY[i]);bad.push(true)}
+  const R=rashr(x,y),O=ols(x,y),L=lms(x,y);
+  document.getElementById('lv-r').textContent=R.beta.toFixed(3);document.getElementById('lv-l').textContent=L.beta.toFixed(3);document.getElementById('lv-o').textContent=O.beta.toFixed(3);
+  const W=640,H=460,x0=-7,x1=44,y0=-18,y1=22,tx=v=>(v-x0)/(x1-x0)*W,ty=v=>H-(v-y0)/(y1-y0)*H;g.clearRect(0,0,W,H);
+  g.strokeStyle='#E3E8F0';for(let v=-5;v<=40;v+=5){g.beginPath();g.moveTo(tx(v),0);g.lineTo(tx(v),H);g.stroke()}for(let v=-15;v<=20;v+=5){g.beginPath();g.moveTo(0,ty(v));g.lineTo(W,ty(v));g.stroke()}
+  const line=(a,b,col,w,dash)=>{g.strokeStyle=col;g.lineWidth=w;g.setLineDash(dash||[]);g.beginPath();g.moveTo(tx(x0),ty(a+b*x0));g.lineTo(tx(x1),ty(a+b*x1));g.stroke();g.setLineDash([]);g.lineWidth=1};
+  line(1,2,'#111',1,[4,4]);line(O.alpha,O.beta,COL.OLS,1.6,[2,3]);line(L.alpha,L.beta,COL.LMS,1.8,[6,4]);line(R.alpha,R.beta,COL.RAShR,3.2);
+  x.forEach((v,i)=>{g.fillStyle=bad[i]?COL.bad:COL.maj;g.beginPath();g.arc(tx(v),ty(y[i]),bad[i]?3.2:3.4,0,2*PI);g.fill()});
+  // local directions panel
+  const n=x.length,ts=Math.atan(2*R.sx/R.sy);g2.clearRect(0,0,330,200);g2.strokeStyle='#E3E8F0';g2.beginPath();g2.moveTo(165,0);g2.lineTo(165,200);g2.stroke();
+  for(let i=0;i<n;i++){let d=mod(R.theta[i]-ts+PI/2,PI)-PI/2;const px=165+d*DEG*1.75,py=195-Math.min(R.w[i]*DEG,60)*3;g2.fillStyle=bad[i]?COL.bad:COL.maj;g2.globalAlpha=.8;g2.beginPath();g2.arc(px,py,2.6,0,2*PI);g2.fill()}g2.globalAlpha=1;
+  g2.fillStyle=COL.ink;g2.font='10px sans-serif';g2.fillText('local directions: x = θᵢ−θ*, y = wᵢ',8,12)}
+ ['lv-f','lv-cx','lv-sp'].forEach(i=>document.getElementById(i).addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(run,25)}));run();})();
+
+/* ============ failure curves ============ */
+(function(){const [c,g]=ctx2('cv-fc');const M=['LMS','LTS','MM','RANSAC','RAShR'];const fr=DATA.fracs;let vis={LMS:1,LTS:1,MM:1,RANSAC:1,RAShR:1};
+ const leg=document.getElementById('fc-leg');M.forEach(m=>{const l=document.createElement('label');l.innerHTML=`<input type="checkbox" checked data-m="${m}"><span style="color:${COL[m]};font-weight:700">${m}</span>`;leg.appendChild(l);l.firstChild.onchange=e=>{vis[m]=e.target.checked;draw()}});
+ ['fc-sc','fc-paper','fc-f'].forEach(i=>document.getElementById(i).addEventListener('input',draw));
+ function draw(){const sc=document.getElementById('fc-sc').value,fi=+document.getElementById('fc-f').value,paper=document.getElementById('fc-paper').checked;
+  const W=720,H=400,L=56,B=44,T=14,Rr=14,px=f=>L+(f-0.19)/(0.47-0.19)*(W-L-Rr),py=v=>H-B-v*(H-B-T);g.clearRect(0,0,W,H);
+  g.strokeStyle='#E3E8F0';g.fillStyle=COL.ink;g.font='11px sans-serif';g.textAlign='right';for(let v=0;v<=1.001;v+=.2){g.beginPath();g.moveTo(L,py(v));g.lineTo(W-Rr,py(v));g.stroke();g.fillText(v.toFixed(1),L-6,py(v)+4)}
+  g.textAlign='center';fr.forEach(f=>{g.fillText(Math.round(f*100)+'%',px(f),H-B+16)});g.fillText('contamination fraction',W/2,H-6);g.save();g.translate(14,H/2);g.rotate(-PI/2);g.fillText('failure rate  Pr(|β̂−2|>0.5)',0,0);g.restore();
+  const sel=fr[fi];g.strokeStyle=COL.teal;g.setLineDash([4,4]);g.beginPath();g.moveTo(px(sel),T);g.lineTo(px(sel),H-B);g.stroke();g.setLineDash([]);
+  M.forEach(m=>{if(!vis[m])return;g.strokeStyle=COL[m];g.fillStyle=COL[m];g.lineWidth=m==='RAShR'?3.4:1.8;g.beginPath();fr.forEach((f,i)=>{const v=DATA[sc][f.toFixed(2)][m].fail;i?g.lineTo(px(f),py(v)):g.moveTo(px(f),py(v))});g.stroke();fr.forEach(f=>{g.beginPath();g.arc(px(f),py(DATA[sc][f.toFixed(2)][m].fail),3.4,0,2*PI);g.fill()});g.lineWidth=1;
+   if(paper){const pv=DATA.paper[sc]||{};Object.keys(pv).forEach(f=>{const v=pv[f][m];if(v==null)return;g.strokeStyle=COL[m];g.lineWidth=2;g.beginPath();const x=px(+f),y=py(v);g.moveTo(x,y-7);g.lineTo(x+7,y);g.lineTo(x,y+7);g.lineTo(x-7,y);g.closePath();g.stroke();g.lineWidth=1})}});
+  document.getElementById('fc-fv').textContent=Math.round(sel*100)+'%';
+  const tb=document.getElementById('fc-tab');let h='<tr><th class="l">method</th><th>this re-impl.</th><th>paper</th></tr>';M.slice().reverse().forEach(m=>{const v=DATA[sc][sel.toFixed(2)][m].fail,p=(DATA.paper[sc]||{})[sel.toFixed(2)];const pv=p&&p[m]!=null?Math.round(p[m]*100)+'%':'—';h+=`<tr><td class="l" style="color:${COL[m]};font-weight:700">${m}</td><td class="read">${Math.round(v*100)}%</td><td class="read">${pv}</td></tr>`});tb.innerHTML=h}
+ draw();})();
+
+/* ============ cluster move ============ */
+(function(){const [c,g]=ctx2('cv-mv');const mv=DATA.move,M=['RANSAC','LTS','MM','LMS','RAShR'];const sl=document.getElementById('mv-c');sl.max=mv.cx.length-1;
+ function draw(){const k=+sl.value;document.getElementById('mv-cv').textContent=mv.cx[k];const W=560,H=340,L=46,B=34,T=10,R=10,xs=mv.cx[0],xe=mv.cx[mv.cx.length-1],y0=-1,y1=2.6;
+  const px=v=>L+(v-xs)/(xe-xs)*(W-L-R),py=v=>H-B-(v-y0)/(y1-y0)*(H-B-T);g.clearRect(0,0,W,H);g.strokeStyle='#E3E8F0';g.fillStyle=COL.ink;g.font='11px sans-serif';g.textAlign='right';
+  for(let v=-1;v<=2.5;v+=.5){g.beginPath();g.moveTo(L,py(v));g.lineTo(W-R,py(v));g.stroke();g.fillText(v.toFixed(1),L-5,py(v)+4)}g.textAlign='center';for(let v=10;v<=40;v+=10)g.fillText(v,px(v),H-B+16);g.fillText('cluster position cₓ',W/2,H-4);
+  g.strokeStyle=COL.teal;g.setLineDash([4,4]);g.beginPath();g.moveTo(px(mv.cx[k]),T);g.lineTo(px(mv.cx[k]),H-B);g.stroke();g.setLineDash([]);
+  M.forEach(m=>{g.strokeStyle=COL[m];g.lineWidth=m==='RAShR'?3.4:1.6;g.beginPath();mv.cx.forEach((v,i)=>{const yv=mv[m][i];i?g.lineTo(px(v),py(yv)):g.moveTo(px(v),py(yv))});g.stroke()});g.lineWidth=1;
+  document.getElementById('mv-read').innerHTML=M.slice().reverse().map(m=>`<span style="color:${COL[m]}">${m}: ${mv[m][k].toFixed(3)}</span>`).join(' &nbsp; ')}
+ sl.addEventListener('input',draw);draw();})();
+
+/* ============ standard-settings table ============ */
+(function(){const S=DATA.standard,M=['RAShR','LMS','LTS','MM','RANSAC'];const names={clean:'Clean',vertical20:'20% vertical',leverage10:'10% bad leverage',line20:'20% competing line'};
+ let h='<table><tr><th class="l"></th>'+M.map(m=>`<th>${m}</th>`).join('')+'</tr>';for(const k in S){const mn=Math.min(...M.map(m=>S[k][m].med_abs_err));h+=`<tr><td class="l">${names[k]}</td>`+M.map(m=>`<td class="${S[k][m].med_abs_err===mn?'best':''}">${S[k][m].med_abs_err.toFixed(3)}</td>`).join('')+'</tr>'}
+ document.getElementById('std-table').innerHTML=h+'</table>'})();
+
+/* ============ deck navigation ============ */
+const slides=[...document.querySelectorAll('.slide')];let cur=0;const menu=document.getElementById('menu');
+(function(){let last='';slides.forEach((s,i)=>{if(s.dataset.sec!==last){last=s.dataset.sec;const d=document.createElement('div');d.className='sec';d.textContent=last;menu.appendChild(d)}const a=document.createElement('a');a.textContent=(i+1)+'. '+s.dataset.title;a.onclick=()=>{go(i);menu.classList.remove('open')};menu.appendChild(a)})})();
+function go(i){cur=Math.max(0,Math.min(slides.length-1,i));slides.forEach((s,k)=>s.classList.toggle('active',k===cur));document.querySelector('#prog i').style.width=((cur+1)/slides.length*100)+'%';
+ document.getElementById('b-count').textContent=(cur+1)+' / '+slides.length+' · '+slides[cur].dataset.sec;history.replaceState(null,'','#'+(cur+1));slides[cur].scrollTop=0}
+document.getElementById('b-next').onclick=()=>go(cur+1);document.getElementById('b-prev').onclick=()=>go(cur-1);document.getElementById('b-menu').onclick=()=>menu.classList.toggle('open');
+document.getElementById('b-full').onclick=()=>{document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()};
+document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();go(cur+1)}if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();go(cur-1)}if(e.key==='Home')go(0);if(e.key==='End')go(slides.length-1)});
+go(parseInt(location.hash.slice(1)||'1')-1);
+</script>
+</body>
+</html>

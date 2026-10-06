@@ -1,0 +1,7 @@
+\beamer@sectionintoc {1}{Motivation}{3}{0}{1}
+\beamer@sectionintoc {2}{From points to directions}{8}{0}{2}
+\beamer@sectionintoc {3}{Theory}{18}{0}{3}
+\beamer@sectionintoc {4}{Why LMS is attracted}{24}{0}{4}
+\beamer@sectionintoc {5}{Simulation evidence}{27}{0}{5}
+\beamer@sectionintoc {6}{Conclusions}{33}{0}{6}
+\beamer@sectionintoc {7}{Appendix}{36}{1}{7}

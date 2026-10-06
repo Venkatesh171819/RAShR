@@ -1,0 +1,15 @@
+\begin{tabular}{@{}l ccccc c cc@{}}
+\toprule
+& \multicolumn{5}{c}{compact cluster, $f=$} & line & \multicolumn{2}{c}{funnel}\\
+\cmidrule(lr){2-6}\cmidrule(lr){7-7}\cmidrule(lr){8-9}
+residual threshold & 30\% & 36\% & 40\% & 44\% & 46\% & 46\% & 40\% & 44\%\\
+\midrule
+MAD(y) [default] & 53 & 93 & 97 & 100 & 100 & 13 & 8 & 20 \\
+0.5 MAD(y) & 0 & 0 & 22 & 100 & 100 & 22 & 30 & 67 \\
+2.0 (oracle) & 0 & 0 & 13 & 98 & 100 & 13 & 27 & 65 \\
+2.5 (oracle) & 0 & 0 & 17 & 100 & 100 & 3 & 7 & 38 \\
+4.0 (oracle) & 0 & 8 & 93 & 100 & 100 & 12 & 8 & 23 \\
+\midrule
+RAShR (same samples) & 0 & 0 & 0 & 55 & 98 & 2 & 3 & 0 \\
+\bottomrule
+\end{tabular}
